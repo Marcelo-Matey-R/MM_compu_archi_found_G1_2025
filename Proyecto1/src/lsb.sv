@@ -22,6 +22,7 @@ module lsb_calc (
 
     // Calculo del numero 1 -> out1
     and U_AND3 (y1, bit3_neg, bit2_neg);
+    // Calculo del numero 2 -> out2
     and U_AND4 (out1, y1, d_in[0]);
 
 endmodule

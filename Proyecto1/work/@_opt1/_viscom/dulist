@@ -1,0 +1,6 @@
+2 7 mux_2_1 4 fast 70 D:/WorkSpace/Progra/Github/MM_compu_archi_found_G1_2025/Proyecto1/work 0 0 0 0 26 0
+2 13 flip_flop_165 4 fast 70 D:/WorkSpace/Progra/Github/MM_compu_archi_found_G1_2025/Proyecto1/work 0 0 0 0 41 0
+2 6 sr_165 4 fast 70 D:/WorkSpace/Progra/Github/MM_compu_archi_found_G1_2025/Proyecto1/work 0 0 0 0 91 0
+2 13 flip_flop_595 4 fast 70 D:/WorkSpace/Progra/Github/MM_compu_archi_found_G1_2025/Proyecto1/work 0 0 0 0 31 0
+2 7 dsr_595 4 fast 70 D:/WorkSpace/Progra/Github/MM_compu_archi_found_G1_2025/Proyecto1/work 0 0 0 0 196 0
+1 14 tb_shift_chain 4 fast 70 D:/WorkSpace/Progra/Github/MM_compu_archi_found_G1_2025/Proyecto1/work 0 0 0 0 213 0
