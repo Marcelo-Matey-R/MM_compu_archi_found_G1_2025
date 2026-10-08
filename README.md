@@ -1,1 +1,1 @@
-# -MM_compu_archi_found_G1_2025
+# MM_compu_archi_found_G1_2025
