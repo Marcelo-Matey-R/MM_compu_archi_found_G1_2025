@@ -1,6 +1,6 @@
 module top_level (
     input logic CLK_50,
-    input  logic [2:0] SW,
+    input  logic [4:0] SW,
     input  logic [2:0] KEY,       //activo bajo.
     output logic [3:0] LEDR,
     output logic [6:0] HEX0
@@ -37,13 +37,16 @@ module top_level (
     logic [8:0] pass;
     logic open, close, valid;
     logic [6:0] seg;
+    logic [2:0] bits;
+
+    encoder_5_3 U_ENCODER_IN(SW, bits);
 
     sr_165 #(.N(3)) U_165 (
         .clk(CLK_50),
         .rst(rst),
         .sh(sync_sh_ld),
         .step(pulse_step),
-        .d_in(SW),
+        .d_in(bits),
         .qh(serial_out)
     );
 
@@ -90,6 +93,6 @@ module top_level (
     );
 
     assign HEX0 = seg;                 // activo en bajo
-    assign LEDR = {serial_out, SW};
+    assign LEDR = {serial_out, bits};
 
 endmodule
