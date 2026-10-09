@@ -12,10 +12,10 @@ module hex_decoder (
     not U_NOT(val, y1);
 
     logic a_d;
-    and U_AND2(a_d, val, valid);
+    nand U_AND2(a_d, val, valid);
 
     logic b_c;
-    and U_AND3(b_c, val, open);
+    nand U_AND3(b_c, val, open);
 
     assign seg[0] = a_d;
     assign seg[3] = a_d;
@@ -23,9 +23,9 @@ module hex_decoder (
     assign seg[1] = b_c;
     assign seg[2] = b_c;
 
-    assign seg[4] = 1'b1;
-    assign seg[5] = 1'b1;
+    assign seg[4] = 1'b0;
+    assign seg[5] = 1'b0;
 
-    assign seg[6] = 1'b0;
+    assign seg[6] = 1'b1;
 
 endmodule
