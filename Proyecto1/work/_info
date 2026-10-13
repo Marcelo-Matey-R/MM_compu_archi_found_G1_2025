@@ -1,0 +1,383 @@
+m255
+K4
+z2
+Z0 !s12c _opt1
+Z1 !s99 nomlopt
+Z2 !s12c _opt2
+R1
+R2
+R1
+R0
+R1
+R0
+R1
+R0
+R1
+R0
+R1
+!s11f vlog 2025.2 2025.05, May 31 2025
+13
+!s112 1.1
+!i10d 8192
+!i10e 25
+!i10f 100
+cModel Technology
+Z3 dD:/WorkSpace/Progra/Github/MM_compu_archi_found_G1_2025/Proyecto1
+T_opt1
+!i145 1
+!i144 0
+!s110 1791503988
+VY]JK_>[`G[j]HBI;llK]32
+04 11 4 work tb_password fast 0
+=1-4c23382ddcfd-6ac82e73-3a6-8b6c
+R1
+Z4 !s12f OEM100
+Z5 !s12b OEM100
+!s124 OEM10U5 
+Z6 !s135 nogc
+Z7 o-quiet -auto_acc_if_foreign -work work +acc
+Z8 tCvgOpt 0 defaultOptions 1107585188
+n@_opt1
+Z9 OL;O;2025.2;82
+T_opt2
+!i145 1
+!i144 0
+!s110 1791503274
+VkH44CF=QH^cnzjbe=>zh62
+04 10 4 work tb_encoder fast 0
+=2-4c23382ddcfd-6ac82ba9-3a1-18f0
+R1
+R4
+R5
+!s124 OEM10U2 
+R6
+R7
+R8
+n@_opt2
+R9
+R3
+vdsr_595
+Z10 2src/deserializador_SIPO.sv|src/serializador_PISO.sv|src/flip_flop_165.sv|src/flip_flop_595.sv|src/mux_2_1.sv|tb/tb_shift_chain.sv
+Z11 DXx6 sv_std 3 std 0 22 @5XbY]_OacJl=`ToSm<M^0
+Z12 !s110 1791500588
+!i10b 1
+!s100 lmWP]6k1@cJbU8lBE2=NW3
+I60gYd?gDPm7j?5=5`LDoJ3
+S1
+R3
+w1791439798
+8src/deserializador_SIPO.sv
+Fsrc/deserializador_SIPO.sv
+!i122 13
+L0 1 55
+Z13 VDg1SIo80bB@j0V0VzS_@n1
+Z14 OL;L;2025.2;82
+r1
+!s85 0
+31
+Z15 !s108 1791500588.000000
+Z16 !s107 tb/tb_shift_chain.sv|src/mux_2_1.sv|src/flip_flop_595.sv|src/flip_flop_165.sv|src/serializador_PISO.sv|src/deserializador_SIPO.sv|
+Z17 !s90 -reportprogress|300|src/deserializador_SIPO.sv|src/serializador_PISO.sv|src/flip_flop_165.sv|src/flip_flop_595.sv|src/mux_2_1.sv|tb/tb_shift_chain.sv|
+!i113 0
+Z18 o-L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
+Z19 tCvgOpt 0 defaultOptions 1085333592
+vencoder_5_3
+Z20 2src/encoder_inputs.sv|tb/tb_encoder.sv
+R11
+Z21 !s110 1791503261
+!i10b 1
+!s100 >m=1jljBE7fmN7?EDAEz30
+IC8;Eha8?>PDlBQXgUnE3G3
+S1
+R3
+w1791503211
+8src/encoder_inputs.sv
+Fsrc/encoder_inputs.sv
+!i122 18
+L0 1 23
+R13
+R14
+r1
+!s85 0
+31
+Z22 !s108 1791503260.000000
+Z23 !s107 tb/tb_encoder.sv|src/encoder_inputs.sv|
+Z24 !s90 -reportprogress|300|src/encoder_inputs.sv|tb/tb_encoder.sv|
+!i113 0
+R18
+R19
+vflip_flop_165
+R10
+R11
+R12
+!i10b 1
+!s100 [AQ;G1K@MNU0MX:kelHmY1
+I0gL]_fZGa:;F61[GmS?5D1
+S1
+R3
+w1791436067
+8src/flip_flop_165.sv
+Fsrc/flip_flop_165.sv
+!i122 13
+L0 1 32
+R13
+R14
+r1
+!s85 0
+31
+R15
+R16
+R17
+!i113 0
+R18
+R19
+vflip_flop_595
+R10
+R11
+R12
+!i10b 1
+!s100 Q7fZnnAW9]09=:Z<;I<Eh0
+IG<55mF>mSj>dif;[^zQ9W3
+S1
+R3
+w1791489672
+8src/flip_flop_595.sv
+Fsrc/flip_flop_595.sv
+!i122 13
+L0 1 24
+R13
+R14
+r1
+!s85 0
+31
+R15
+R16
+R17
+!i113 0
+R18
+R19
+vis_four
+Z25 2src/password_verification.sv|src/is_four.sv|src/is_tree.sv|src/lsb.sv|tb/tb_password.sv
+R11
+Z26 !s110 1791503935
+!i10b 1
+!s100 5Z^iBYi5h_ONoCgfnAUN43
+ImDzCgnNP1`4_<7;U<=M=S1
+S1
+R3
+w1791097245
+8src/is_four.sv
+Fsrc/is_four.sv
+!i122 19
+L0 1 15
+R13
+R14
+r1
+!s85 0
+31
+Z27 !s108 1791503935.000000
+Z28 !s107 tb/tb_password.sv|src/lsb.sv|src/is_tree.sv|src/is_four.sv|src/password_verification.sv|
+Z29 !s90 -reportprogress|300|src/password_verification.sv|src/is_four.sv|src/is_tree.sv|src/lsb.sv|tb/tb_password.sv|
+!i113 0
+R18
+R19
+vis_tree
+R25
+R11
+R26
+!i10b 1
+!s100 R93kddMchoTO>[k=8CgZC1
+I?0S`fRZh2eGAJ]Ca@`E1S1
+S1
+R3
+w1791097291
+8src/is_tree.sv
+Fsrc/is_tree.sv
+!i122 19
+L0 1 13
+R13
+R14
+r1
+!s85 0
+31
+R27
+R28
+R29
+!i113 0
+R18
+R19
+vlsb_calc
+R25
+R11
+R26
+!i10b 1
+!s100 O0a>?6B^:45E24IS069>d0
+I1c0QUd@F:aDJ:0N8NC=W51
+S1
+R3
+w1791492601
+8src/lsb.sv
+Fsrc/lsb.sv
+!i122 19
+L0 1 28
+R13
+R14
+r1
+!s85 0
+31
+R27
+R28
+R29
+!i113 0
+R18
+R19
+vmux_2_1
+R10
+R11
+R12
+!i10b 1
+!s100 6:LfTbe=d1ATD?kHZJ:N<2
+IAG0X]UGU2]KnD7]KgB15j3
+S1
+R3
+w1791428817
+8src/mux_2_1.sv
+Fsrc/mux_2_1.sv
+!i122 13
+L0 1 16
+R13
+R14
+r1
+!s85 0
+31
+R15
+R16
+R17
+!i113 0
+R18
+R19
+vpassword
+R25
+R11
+R26
+!i10b 1
+!s100 ?;VVYjG^VQFRAY63l;@3d0
+I_fUnEIQSEb4GBlm6a9V@o0
+S1
+R3
+w1791097464
+8src/password_verification.sv
+Fsrc/password_verification.sv
+!i122 19
+L0 1 38
+R13
+R14
+r1
+!s85 0
+31
+R27
+R28
+R29
+!i113 0
+R18
+R19
+vsr_165
+R10
+R11
+R12
+!i10b 1
+!s100 mLWTXLO<RM[C;m_Sl_FoS3
+IHzfRLJ?mBnoaUX8GV?SBe3
+S1
+R3
+w1791435731
+8src/serializador_PISO.sv
+Fsrc/serializador_PISO.sv
+!i122 13
+L0 1 51
+R13
+R14
+r1
+!s85 0
+31
+R15
+R16
+R17
+!i113 0
+R18
+R19
+vtb_encoder
+R20
+R11
+R21
+!i10b 1
+!s100 V;a`bWTclg7dkcGU^]kk`1
+IFMhlQ@4cocaUDdSTUo^B?2
+S1
+R3
+w1791502941
+8tb/tb_encoder.sv
+Ftb/tb_encoder.sv
+!i122 18
+L0 1 35
+R13
+R14
+r1
+!s85 0
+31
+R22
+R23
+R24
+!i113 0
+R18
+R19
+vtb_password
+R25
+R11
+R26
+!i10b 1
+!s100 Hi4aUL024oF58dN?46o:e2
+IbP?2DXj3XGQz5j2^kKXlM1
+S1
+R3
+w1791503836
+8tb/tb_password.sv
+Ftb/tb_password.sv
+!i122 19
+L0 1 53
+R13
+R14
+r1
+!s85 0
+31
+R27
+R28
+R29
+!i113 0
+R18
+R19
+vtb_shift_chain
+R10
+R11
+R12
+!i10b 1
+!s100 25d0eUUbA_zSBm8j4ImAz0
+IM5=8`j>kbWJDHl^Q<8lM22
+S1
+R3
+w1791500411
+8tb/tb_shift_chain.sv
+Ftb/tb_shift_chain.sv
+!i122 13
+L0 1 82
+R13
+R14
+r1
+!s85 0
+31
+R15
+R16
+R17
+!i113 0
+R18
+R19

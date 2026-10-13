@@ -1,0 +1,17 @@
+
+db/
+incremental_db/
+simulation/
+greybox_tmp/
+hc_output/
+output_files/
+
+*.sof
+*.pof
+*.rpt
+*.summary
+*.jdi
+*.pin
+*.done
+*.qws
+*.smsg
