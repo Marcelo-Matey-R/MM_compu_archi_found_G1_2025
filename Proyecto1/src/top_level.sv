@@ -36,7 +36,7 @@ module top_level (
     );
 
     logic serial_out;
-    logic [8:0] pass;
+    logic [8:0] pass, keep_pass_open, keep_pass_close;
     logic open, close, valid;
     logic [6:0] seg;
     logic [2:0] bits;
@@ -67,8 +67,7 @@ module top_level (
         .valid(valid)
     );
 
-    logic [3:0] pulse_cnt;       // satura en 10
-           // n mod 3
+    logic [3:0] pulse_cnt;       
     logic       aligned;
 
     always_ff @(posedge CLOCK_50, negedge rst_n) begin

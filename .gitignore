@@ -5,6 +5,7 @@ simulation/
 greybox_tmp/
 hc_output/
 output_files/
+/work
 
 *.sof
 *.pof
@@ -15,3 +16,4 @@ output_files/
 *.done
 *.qws
 *.smsg
+*.vcd
