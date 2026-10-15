@@ -3,6 +3,7 @@ module ripple_adder #(
 ) (
     input logic [N-1:0] a,
     input logic [N-1:0] b,
+    input logic c_in,
     output logic [N-1:0] res,
     output logic c_out
 );
@@ -11,7 +12,7 @@ module ripple_adder #(
     logic [N:0] carry;
 
     // Acarreo inicial en cero para el bit menos significativo
-    assign carry[0] = 1'b0;
+    assign carry[0] = c_in;
 
     genvar i;
     generate
