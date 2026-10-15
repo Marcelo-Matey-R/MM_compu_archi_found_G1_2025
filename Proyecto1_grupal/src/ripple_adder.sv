@@ -12,7 +12,7 @@ module ripple_adder #(
     logic [N:0] carry;
 
     // Acarreo inicial en cero para el bit menos significativo
-    assign carry[0] = c_in;
+    assign carry[0] = c_in; 
 
     genvar i;
     generate

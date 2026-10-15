@@ -20,6 +20,7 @@ module tb_ripple_adder();
     ) dut (
         .a(a),
         .b(b),
+        .c_in(1'b0), 
         .res(res),
         .c_out(c_out)
     );
