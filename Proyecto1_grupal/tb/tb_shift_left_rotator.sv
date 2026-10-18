@@ -8,15 +8,17 @@ module tb_shift_left_rotator_n #(
 
     logic [N-1:0] a, y, exp;
     logic [S-1:0] sh;
+    int sh_reference;
 
     shift_left_rotator #(.N(N)) dut (.a(a), .sh(sh), .y(y));
 
     initial begin
         for (int v = 0; v < 2**N; v++) begin
             a = v;
-            for (int i = 0; i < N; i++) begin
-                sh  = i; #10;
-                exp = (a << i) | (a >> (N-i));
+            for (int i = 0; i < 2**S; i++) begin
+                sh = i;
+                sh_reference = i % N; #10;
+                exp = (a << sh_reference) | (a >> (N-sh_reference));
                 if (y !== exp) begin
                     $error("N=%0d a=%b sh=%0d: esperado %b, obtenido %b", N, a, i, exp, y);
                     errors++;
