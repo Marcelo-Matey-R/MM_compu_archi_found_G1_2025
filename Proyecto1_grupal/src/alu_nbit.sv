@@ -10,11 +10,16 @@ module alu_nbit #(
     output alu_flags_t   flags
 );
 
+    localparam S = $clog2(N);
     logic c_out;
     logic [N-1:0] b_operand;
     logic [N-1:0] b_neg;
     logic sel;
     logic [N-1:0] res_arit;
+    logic [N-1:0] res_mul;
+    logic [2N-1:0] full_mul;
+    logic [N-1:0] res_rol;
+    logic [N-1:0] res_ror;
 
     // Wires para la decodificación estructural de 'sel' (SUB_OP = 3'b001)
     logic not_c2, not_c1, and_w1;
@@ -59,8 +64,29 @@ module alu_nbit #(
         .c_out(c_out)
     );
 
+    // 5. Multiplicacion
+    product #(.N(N)) products (
+    .src1(a),
+    .src2(b),
+    .y(full_mul)
+    );
 
-    // 5. Flags
+    assign res_mul = full_mul[N-1:0];
+
+    // 6. Rotadores
+    shift_left_rotator #(.N(N), .S(S)) leftRotator (
+        .a(a),
+        .sh(b[S-1:0]),
+        .y(res_rol)
+    );
+
+    shift_right_rotator #(.N(N), .S(S)) rightRotator (
+        .a(a),
+        .sh(b[S-1:0]),
+        .y(res_ror)
+    );
+
+    // 7. Flags
 
     // Carry
     assign flag_carry = c_out;
@@ -96,7 +122,7 @@ module alu_nbit #(
     and  U_AND_OVF (flag_overflow, not_xor_sign, xor_sign_ar);
 
 
-    // 6. Se arma 'flags' en una sola asignación (por nombre de campo,
+    // 8. Se arma 'flags' en una sola asignación (por nombre de campo,
     // así no depende del orden de los campos en el struct)
     assign flags = '{carry:    flag_carry,
                      negative: flag_negative,
