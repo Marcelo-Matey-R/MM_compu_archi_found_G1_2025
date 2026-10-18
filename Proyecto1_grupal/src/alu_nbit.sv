@@ -1,7 +1,7 @@
 import alu_types_pkg::*;
 
 module alu_nbit #(
-    parameter int N = 8
+    parameter int N = 3
 )(
     input  logic [N-1:0] a,
     input  logic [N-1:0] b,
@@ -14,6 +14,7 @@ module alu_nbit #(
     logic [N-1:0] b_operand;
     logic [N-1:0] b_neg;
     logic sel;
+    logic [N-1:0] res_arit;
 
     // Wires para la decodificación estructural de 'sel' (SUB_OP = 3'b001)
     logic not_c2, not_c1, and_w1;
@@ -53,7 +54,7 @@ module alu_nbit #(
     ripple_adder #(.N(N)) adder (
         .a(a),
         .b(b_operand),
-        .res(result),
+        .res(res_arit),
         .c_in(sel),
         .c_out(c_out)
     );
@@ -87,7 +88,7 @@ module alu_nbit #(
 
     assign sign_a    = a[N-1];
     assign sign_b_op = b_operand[N-1];
-    assign sign_res  = result[N-1];
+    assign sign_res  = res_arit[N-1];
 
     xor  U_XOR_AB  (xor_sign_ab,  sign_a, sign_b_op);
     not  U_NOT_XAB (not_xor_sign, xor_sign_ab);         // (sign_a == sign_b_op)
