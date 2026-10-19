@@ -104,24 +104,56 @@ module tb_select_storage;
                         sel, word, gap, scramble));
     endtask
 
-    // Igual, pero con step en ciclos consecutivos (sin huecos).
-    // extra = 1: agrega un 11.o step justo en el ciclo en que full esta activo.
+    // Igual, pero con step en ciclos consecutivos (sin huecos) y una sola palabra.
     task automatic send_word_burst(input logic [8:0] word,
-                                   input logic [1:0] sel,
-                                   input bit         extra);
+                                   input logic [1:0] sel);
         s = sel;
         for (int i = 8; i >= 0; i--)
             step_cycle(word[i]);
         step_cycle(1'($urandom_range(0, 1)));       // bit de relleno
-        if (extra)
-            step_cycle(1'($urandom_range(0, 1)));   // step coincide con full
         idle(3);
 
         model_store(word, sel);
-        check($sformatf("burst s=%b (word=%b, extra=%0b)", sel, word, extra));
+        check($sformatf("burst s=%b (word=%b)", sel, word));
     endtask
 
-    // Reset en medio de una palabra: debe limpiar src*, count y el desplazador
+    // Tres palabras encadenadas, sin ningun ciclo libre entre ellas:
+    // el primer bit de cada palabra cae en el ciclo de captura (done) de la anterior.
+    // En ese primer step s todavia debe tener el valor de la palabra anterior;
+    // cambia justo despues.
+    task automatic send_chain(input logic [8:0] wa, input logic [1:0] sa,
+                              input logic [8:0] wb, input logic [1:0] sb,
+                              input logic [8:0] wc, input logic [1:0] sc);
+        // palabra a
+        s = sa;
+        for (int i = 8; i >= 0; i--)
+            step_cycle(wa[i]);
+        step_cycle(1'($urandom_range(0, 1)));       // relleno de a
+
+        // palabra b: su 1.er bit coincide con la captura de a (s sigue en sa)
+        step_cycle(wb[8]);
+        model_store(wa, sa);
+        check($sformatf("cadena: captura de a (s=%b)", sa));
+        s = sb;
+        for (int i = 7; i >= 0; i--)
+            step_cycle(wb[i]);
+        step_cycle(1'($urandom_range(0, 1)));       // relleno de b
+
+        // palabra c: su 1.er bit coincide con la captura de b (s sigue en sb)
+        step_cycle(wc[8]);
+        model_store(wb, sb);
+        check($sformatf("cadena: captura de b (s=%b)", sb));
+        s = sc;
+        for (int i = 7; i >= 0; i--)
+            step_cycle(wc[i]);
+        step_cycle(1'($urandom_range(0, 1)));       // relleno de c
+
+        idle(3);
+        model_store(wc, sc);
+        check($sformatf("cadena: captura de c (s=%b)", sc));
+    endtask
+
+    // Reset en medio de una palabra: debe limpiar src*, count y done
     task automatic reset_mid_word();
         s = 2'b00;
         for (int i = 0; i < 4; i++) begin
@@ -143,8 +175,8 @@ module tb_select_storage;
     // ------------------------------------------------------------------
     // Secuencia principal
     // ------------------------------------------------------------------
-    logic [8:0] w;
-    logic [1:0] sel;
+    logic [8:0] w, wb, wc;
+    logic [1:0] sel, sb, sc;
 
     initial begin
         m1 = '0; m2 = '0; m3 = '0;
@@ -173,24 +205,23 @@ module tb_select_storage;
 
         // 3) Step en ciclos consecutivos
         $display("--- 3) step consecutivo");
-        send_word_burst(9'b110_010_101, 2'b00, 1'b0);
-        send_word_burst(9'b001_101_110, 2'b01, 1'b0);
-        send_word_burst(9'b101_011_000, 2'b10, 1'b0);
+        send_word_burst(9'b110_010_101, 2'b00);
+        send_word_burst(9'b001_101_110, 2'b01);
+        send_word_burst(9'b101_011_000, 2'b10);
 
-        // 4) s cambia durante la palabra, solo cuenta el valor en full
+        // 4) s cambia durante la palabra, solo cuenta el valor en done
         $display("--- 4) s cambia durante la palabra");
         send_word_slow(9'b011_011_011, 2'b00, 1, 1'b1);
         send_word_slow(9'b100_100_100, 2'b01, 1, 1'b1);
         send_word_slow(9'b010_101_010, 2'b10, 1, 1'b1);
         send_word_slow(9'b111_000_111, 2'b11, 1, 1'b1);
 
-        // 5) Step coincidiendo con el ciclo de full (11 steps seguidos),
-        //    y luego una palabra normal para verificar que no se pierde la sincronia
-        $display("--- 5) step coincide con full");
-        send_word_burst(9'b101_101_001, 2'b00, 1'b1);
-        send_word_slow (9'b010_110_011, 2'b01, 2, 1'b0);
-        send_word_burst(9'b001_001_110, 2'b10, 1'b1);
-        send_word_slow (9'b110_011_100, 2'b00, 2, 1'b0);
+        // 5) Palabras encadenadas: el 1.er step de una palabra coincide con done
+        $display("--- 5) palabras encadenadas");
+        send_chain(9'b101_101_001, 2'b00,  9'b010_110_011, 2'b01,  9'b001_001_110, 2'b10);
+        send_chain(9'b110_011_100, 2'b10,  9'b000_111_000, 2'b11,  9'b111_000_111, 2'b00);
+        // despues de una cadena, el contador debe seguir alineado
+        send_word_slow(9'b011_001_101, 2'b01, 2, 1'b0);
 
         // 6) Reset a mitad de palabra
         $display("--- 6) reset a mitad de palabra");
@@ -201,10 +232,15 @@ module tb_select_storage;
         for (int n = 0; n < 40; n++) begin
             w   = 9'($urandom_range(0, 511));
             sel = 2'($urandom_range(0, 3));
-            if ($urandom_range(0, 1))
-                send_word_slow(w, sel, $urandom_range(0, 3), 1'($urandom_range(0, 1)));
-            else
-                send_word_burst(w, sel, 1'($urandom_range(0, 1)));
+            case ($urandom_range(0, 2))
+                0: send_word_slow(w, sel, $urandom_range(0, 3), 1'($urandom_range(0, 1)));
+                1: send_word_burst(w, sel);
+                default: begin
+                    wb = 9'($urandom_range(0, 511));  sb = 2'($urandom_range(0, 3));
+                    wc = 9'($urandom_range(0, 511));  sc = 2'($urandom_range(0, 3));
+                    send_chain(w, sel, wb, sb, wc, sc);
+                end
+            endcase
         end
 
         $display("Checks realizados: %0d", checks);
