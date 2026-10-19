@@ -1,7 +1,7 @@
 import alu_types_pkg::*;
 
 module alu_nbit #(
-    parameter int N = 8
+    parameter int N = 3
 )(
     input  logic [N-1:0] a,
     input  logic [N-1:0] b,
@@ -10,10 +10,17 @@ module alu_nbit #(
     output alu_flags_t   flags
 );
 
+    localparam S = $clog2(N);
     logic c_out;
     logic [N-1:0] b_operand;
     logic [N-1:0] b_neg;
     logic sel;
+    logic [N-1:0] res_arit;
+    logic [N-1:0] res_mul;
+    logic [2*N-1:0] full_mul;
+    logic [N-1:0] res_rol;
+    logic [N-1:0] res_ror;
+    logic [N-1:0] m1, m2, m3;
 
     // Wires para la decodificación estructural de 'sel' (SUB_OP = 3'b001)
     logic not_c2, not_c1, and_w1;
@@ -53,13 +60,63 @@ module alu_nbit #(
     ripple_adder #(.N(N)) adder (
         .a(a),
         .b(b_operand),
-        .res(result),
+        .res(res_arit),
         .c_in(sel),
         .c_out(c_out)
     );
 
+    // 5. Multiplicacion
+    product #(.N(N)) products (
+    .src1(a),
+    .src2(b),
+    .y(full_mul)
+    );
 
-    // 5. Flags
+    assign res_mul = full_mul[N-1:0];
+
+    // 6. Rotadores
+    shift_left_rotator #(.N(N)) leftRotator (
+        .a(a),
+        .sh(b[S-1:0]),
+        .y(res_rol)
+    );
+
+    shift_right_rotator #(.N(N)) rightRotator (
+        .a(a),
+        .sh(b[S-1:0]),
+        .y(res_ror)
+    );
+
+    // 7. Seleccion de resultado
+    mux_2_1_param #(.N(N)) MUX_1 (
+        .a(res_mul),
+        .b(res_rol),
+        .sel(alu_control[0]),
+        .y(m1)
+    );
+
+    mux_2_1_param #(.N(N)) MUX_2 (
+        .a(res_ror),
+        .b('0),
+        .sel(alu_control[0]),
+        .y(m2)
+    );
+
+    mux_2_1_param #(.N(N)) MUX_3 (
+        .a(res_arit),
+        .b(m1),
+        .sel(alu_control[1]),
+        .y(m3)
+    );
+
+    mux_2_1_param #(.N(N)) MUX_4 (
+        .a(m3),
+        .b(m2),
+        .sel(alu_control[2]),
+        .y(result)
+    );
+
+    // 8. Flags
 
     // Carry
     assign flag_carry = c_out;
@@ -87,7 +144,7 @@ module alu_nbit #(
 
     assign sign_a    = a[N-1];
     assign sign_b_op = b_operand[N-1];
-    assign sign_res  = result[N-1];
+    assign sign_res  = res_arit[N-1];
 
     xor  U_XOR_AB  (xor_sign_ab,  sign_a, sign_b_op);
     not  U_NOT_XAB (not_xor_sign, xor_sign_ab);         // (sign_a == sign_b_op)
@@ -95,7 +152,7 @@ module alu_nbit #(
     and  U_AND_OVF (flag_overflow, not_xor_sign, xor_sign_ar);
 
 
-    // 6. Se arma 'flags' en una sola asignación (por nombre de campo,
+    // 9. Se arma 'flags' en una sola asignación (por nombre de campo,
     // así no depende del orden de los campos en el struct)
     assign flags = '{carry:    flag_carry,
                      negative: flag_negative,
