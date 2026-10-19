@@ -5,7 +5,7 @@ simulation/
 greybox_tmp/
 hc_output/
 output_files/
-/work
+work/
 
 *.sof
 *.pof
