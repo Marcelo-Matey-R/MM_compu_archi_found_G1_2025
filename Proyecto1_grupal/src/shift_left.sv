@@ -11,28 +11,16 @@ module shift_left #(
 
     assign stage[0] = a;
 
-    genvar k, i;
+    genvar i;
     generate
-        for (k = 0; k < S; k++) begin : etapa
-            localparam int DESP = 2**k;
-            for (i = 0; i < N; i++) begin : bit_i
-                if (i < DESP) begin : relleno
-                    // Bits que entran por la derecha: 0 si se desplaza
-                    mux_2_1 m (
-                        .a(stage[k][i]),
-                        .b(1'b0),
-                        .sel(sh[k]),
-                        .y (stage[k+1][i])
-                    );
-                end else begin : desplaza
-                    mux_2_1 m (
-                        .a(stage[k][i]),
-                        .b(stage[k][i - DESP]),
-                        .sel(sh[k]),
-                        .y(stage[k+1][i])
-                    );
-                end
-            end
+        for (i = 0; i < S; i++) begin : etapa
+            localparam K = 2**i;
+            mux_2_1_param #(.N(N)) U_CALC_STAGE(
+                .a(stage[i]),
+                .b({stage[i][N-1-K:0], {K{1'b0}}}),
+                .sel(sh[i]),
+                .y(stage[i+1])
+            );
         end
     endgenerate
 
