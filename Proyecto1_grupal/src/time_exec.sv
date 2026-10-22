@@ -1,9 +1,13 @@
 import alu_types_pkg::*;
 
+//Version sin prescaler: SUM y CHECK se alternan en cada ciclo.
+//x0 sube v cada 2 ciclos, asi que el timeout dura L * 2 / (v * f_clk).
+//Para reemplazar a time_exec.sv: usar este contenido (el modulo se llama igual)
+//y dejar la instancia sin parametros de TICK_BITS.
+
 module time_exec #(
-    parameter TICK_BITS = 14, //el acumulador se actualiza una vez cada 2^14 ciclos
-    parameter L = 12_207,     //4 s * 50 MHz / 2^TICK_BITS
-    parameter N = 15          //se debe cumplir L + 7 < 2^(N-1), por la flag negative
+    parameter L = 100_000_000, //4 s * 50 MHz / 2
+    parameter N = 28           //se debe cumplir L + 7 < 2^(N-1), por la flag negative
 )(
     input logic clk,
     input logic rst,          //activo en bajo
@@ -29,33 +33,12 @@ module time_exec #(
     end
 
 
-    //prescaler: contador que corre libre, su acarreo de salida es el tick
-    //(pulso de 1 ciclo cada 2^TICK_BITS ciclos)
-
-    logic [TICK_BITS - 1 : 0] cnt;
-    logic [TICK_BITS - 1 : 0] next_cnt;
-    logic tick;
-
-    ripple_adder #(.N(TICK_BITS)) U_PRESCALER (
-        .a(cnt),
-        .b({{(TICK_BITS - 1){1'b0}}, 1'b1}),
-        .c_in(1'b0),
-        .res(next_cnt),
-        .c_out(tick)              //1 cuando cnt es todo unos
-    );
-
-    always_ff @(posedge clk) begin
-        if (!rst) cnt <= '0;
-        else      cnt <= next_cnt;
-    end
-
-
     //codificacion: 00 = IDLE, 01 = SUM, 10 = CHECK, 11 = HALT
 
     logic S0, S1, nS0, nS1;
     logic nextS0, nextS1;
-    logic negative, not_negative, not_enable, not_tick;
-    logic y1, y2, y3, y4, y5;
+    logic negative, not_negative, not_enable;
+    logic y1, y2, y3, y4;
 
     assign S0 = current_state[0];
     assign S1 = current_state[1];
@@ -64,22 +47,18 @@ module time_exec #(
     not u_not_s1(nS1, S1);
     not u_not_enable(not_enable, enable);
     not u_not_neg(not_negative, negative);
-    not u_not_tick(not_tick, tick);
 
     //logica de siguiente estado:
-    //SUM se queda en SUM hasta que llega el tick, y ahi pasa a CHECK.
-    //
-    //nextS1 = EN * ( S1 * (S0 + !Neg) + !S1 * S0 * Tick )
-    //nextS0 = EN * ( !S0 + S1 + !Tick )
+    //nextS1 = EN * ( S0 + S1 * !S0 * !Neg )
+    //nextS0 = EN * ( !S0 + S1 * S0 )
 
-    or  u_or_y1(y1, S0, not_negative);
-    and u_and_y2(y2, S1, y1);                //CHECK sin negative, o HALT
-    and u_and_y3(y3, nS1, S0, tick);         //SUM con tick
-    or  u_or_y4(y4, y2, y3);
-    and u_and_nextS1(nextS1, enable, y4);
+    and u_and_y2(y2, S1, nS0, not_negative);
+    or  u_or_y1(y1, S0, y2);
+    and u_and_nextS1(nextS1, enable, y1);
 
-    or  u_or_y5(y5, nS0, S1, not_tick);
-    and u_and_nextS0(nextS0, enable, y5);
+    and u_and_y4(y4, S1, S0);
+    or  u_or_y3(y3, nS0, y4);
+    and u_and_nextS0(nextS0, enable, y3);
 
     assign next_state = {nextS1, nextS0};
 
@@ -118,12 +97,11 @@ module time_exec #(
 
     assign negative = flags.negative;
 
-    //x0 solo se actualiza en SUM con tick, en los demas estados se conserva:
-    logic is_sum, write_x, hold;
+    //x0 solo se actualiza en SUM (01), en los demas estados se conserva:
+    //hold = S1 + !S0
+    logic hold;
 
-    and u_is_sum(is_sum, nS1, S0);
-    and u_write_x(write_x, is_sum, tick);
-    not u_hold(hold, write_x);
+    or u_hold(hold, S1, nS0);
 
     mux_2_1_param #(.N(N)) U_MUXC (
         .a(alu_result),
