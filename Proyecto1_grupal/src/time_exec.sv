@@ -1,9 +1,5 @@
 import alu_types_pkg::*;
 
-//Version sin prescaler: SUM y CHECK se alternan en cada ciclo.
-//x0 sube v cada 2 ciclos, asi que el timeout dura L * 2 / (v * f_clk).
-//Para reemplazar a time_exec.sv: usar este contenido (el modulo se llama igual)
-//y dejar la instancia sin parametros de TICK_BITS.
 
 module time_exec #(
     parameter L = 100_000_000, //4 s * 50 MHz / 2
