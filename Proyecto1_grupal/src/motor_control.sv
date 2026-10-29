@@ -43,7 +43,7 @@ module motor_control(
     
     not u_notS0(nS0, S0); 
     not u_notS1(nS1, S1); 
-    not u_notS2(nS2, S2)
+    not u_notS2(nS2, S2);
     not u_notTo(NTo, sen_opened); 
     not u_notTc(NTc, sen_closed);
     not u_notTimeout(Nt_o, timeout); 

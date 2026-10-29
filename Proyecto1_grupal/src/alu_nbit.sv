@@ -5,7 +5,7 @@ module alu_nbit #(
 )(
     input  logic [N-1:0] a,
     input  logic [N-1:0] b,
-    input  alu_op_e      alu_control,
+    input  alu_op_e alu_control,
     output logic [N-1:0] result,
     output alu_flags_t   flags
 );
