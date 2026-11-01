@@ -1,4 +1,4 @@
-module motor_control(
+module motor_control_timeout(
 
     input logic clk, 
     input logic rst, 
@@ -43,7 +43,7 @@ module motor_control(
     
     not u_notS0(nS0, S0); 
     not u_notS1(nS1, S1); 
-    not u_notS2(nS2, S2)
+    not u_notS2(nS2, S2);
     not u_notTo(NTo, sen_opened); 
     not u_notTc(NTc, sen_closed);
     not u_notTimeout(Nt_o, timeout); 
@@ -54,7 +54,7 @@ module motor_control(
     or  u_or_y1(y1, y2, y3, y4); 
     and u_and_y2(y2, nS1, S0, sen_opened, Nt_o); 
     and u_and_y3(y3, S1, nS0);
-    and u_and_y4(y4, S1, S0, nTc, Nt_o); 
+    and u_and_y4(y4, S1, S0, NTc, Nt_o); 
 
     //next S0; 
 
