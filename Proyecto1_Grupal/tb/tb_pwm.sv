@@ -3,7 +3,7 @@ import alu_types_pkg::*;
 
 module tb_pwm;
     localparam N       = 3;
-    localparam PERIODO = 1 << N;   // 8 pasos por periodo
+    localparam PERIODO = (1 << N) - 1;   // 7 pasos por periodo (cnt de 0 a 6)
 
     logic         clk = 0;
     logic         rst;
@@ -34,7 +34,7 @@ module tb_pwm;
 
     always_ff @(posedge clk or negedge rst) begin
         if (!rst)      ref_cnt <= '0;
-        else if (step) ref_cnt <= ref_cnt + 1'b1;
+        else if (step) ref_cnt <= (ref_cnt == PERIODO - 1) ? '0 : ref_cnt + 1'b1;
     end
 
     // Chequeo ciclo a ciclo (en el flanco de bajada, ya estable)
@@ -78,8 +78,8 @@ module tb_pwm;
         step = 0;
         rst  = 1;
 
-        // 1. Todas las velocidades con step siempre activo
-        for (int v = 0; v < PERIODO; v++)
+        // 1. Todas las velocidades (0 a 7) con step siempre activo; vel = 7 debe dar 100 %
+        for (int v = 0; v <= PERIODO; v++)
             probar_velocidad(v[N-1:0]);
 
         // 2. step intermitente (un pulso cada 4 ciclos), velocidad 3
