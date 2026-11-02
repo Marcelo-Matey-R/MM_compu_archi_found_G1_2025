@@ -1,31 +1,5 @@
 import alu_types_pkg::*;
 
-// Top del Proyecto Grupal 1: puerta con contrasenia.
-// Los nombres de los puertos son los del .qsf del System Builder (CLOCK_50, KEY, LEDR, HEX0, topGPIO).
-//
-// Botones (activos en bajo en la tarjeta):
-//   KEY[0] = reset (borra las contrasenias y cierra la puerta)
-//   KEY[1] = capturar el digito que muestra la mano
-//   KEY[2] = administrar contrasenias (entrar / salir de ADMIN)
-//   KEY[3] = metodo de prueba
-//
-// Header GPIO (topGPIO):
-//   [0]     entrada: sensor de puerta abierta  (1 = tapado)
-//   [1]     entrada: sensor de puerta cerrada  (1 = tapado)
-//   [2]     salida:  motor abriendo  (motor_open  * pwm)
-//   [3]     salida:  motor cerrando  (motor_close * pwm)
-//   [8:4]   entradas: sensores de los 5 dedos, en orden (GPIO[4] = primer dedo)
-//   [9]     salida:  buzzer
-//   el resto queda en alta impedancia
-//
-// Display:
-//   HEX0 = velocidad normalizada de 0 a F ({vel, vel[2]} = round(vel * 15 / 7))
-//
-// LEDs:
-//   LEDR[2:0] = estado de main_fsm
-//   LEDR[4:3] = que digito toca (00 = 1ro, 01 = 2do, 10 = 3ro)
-//   LEDR[8:5] = ranuras de contrasenia ocupadas
-//   LEDR[9]   = escuchando (se puede ingresar un digito)
 
 module top_level #(
     parameter T_BITS    = 25,       // duracion de los sonidos cortos: 2^(T_BITS-1) ciclos (0.34 s)
@@ -38,7 +12,7 @@ module top_level #(
     inout  wire  [35:0] topGPIO
 );
 
-    // ---------------- Reset ----------------
+    //  Reset -
     logic rst;      // activo en alto (sincronizadores)
     logic rst_n;    // activo en bajo (el resto de modulos)
     assign rst_n = ~rst;
@@ -49,7 +23,7 @@ module top_level #(
         .sync_rst_out(rst)
     );
 
-    // ---------------- Botones: pulso de un ciclo al presionar ----------------
+    //  Botones: pulso de un ciclo al presionar 
     logic pulse_cap, pulse_admin, pulse_test;
 
     sync_edge_detector U_BTN_CAP (
@@ -67,7 +41,7 @@ module top_level #(
         .sync_out(), .pulse_out(pulse_test)
     );
 
-    // ---------------- Sensores de la puerta (sincronizados) ----------------
+    // Sensores de la puerta (sincronizados) -
     logic sen_opened, sen_closed;
 
     sync_edge_detector U_SEN_OPEN (
@@ -80,7 +54,7 @@ module top_level #(
         .sync_out(sen_closed), .pulse_out()
     );
 
-    // ---------------- Dedos -> digito ----------------
+    // Dedos -> digito 
     // encoder_inputs espera 6 lineas en termometro, donde f[0] = 1 es "cero dedos".
     // Con 5 sensores, f[0] va fijo en 1 y los dedos ocupan f[5:1].
     // (digit_capture sincroniza el digito por dentro)
@@ -94,7 +68,7 @@ module top_level #(
         .b(digit)
     );
 
-    // ---------------- Captura de los 3 digitos ----------------
+    //  Captura de los 3 digitos
     logic listening, capture;
     logic [2:0] d1, d2, d3;
     logic [8:0] code;
@@ -120,7 +94,7 @@ module top_level #(
         .hit(hit), .full(full), .used(used)
     );
 
-    // ---------------- Velocidad ----------------
+    //  Velocidad 
     // Normal: vel = ALU(op = d1, A = d2, B = d3).
     // vel_fija (prueba, o el cierre despues del reset): vel = 4 + 0 = 4.
     logic vel_fija;
@@ -154,7 +128,7 @@ module top_level #(
     or  U_VEL_NZ (vel_nz, vel[2], vel[1], vel[0]);
     and U_VEL_OK (vel_ok, op_ok, vel_nz);
 
-    // ---------------- MEF general ----------------
+    //  MEF general 
     logic door_toggle;
     logic motor_open, motor_close;
     logic [2:0] evento, fsm_state;
@@ -168,7 +142,7 @@ module top_level #(
         .listening(listening), .evento(evento), .state(fsm_state)
     );
 
-    // ---------------- Puerta ----------------
+    //  Puerta 
     // El mismo toggle va a open y close: en CERRADO abre, en ABIERTO cierra.
     motor_control U_DOOR (
         .clk(CLOCK_50), .rst(rst_n),
@@ -181,7 +155,7 @@ module top_level #(
     and U_MOTOR_A(motor_a, motor_open,  pwm_motor);
     and U_MOTOR_B(motor_b, motor_close, pwm_motor);
 
-    // ---------------- Buzzer ----------------
+    //  Buzzer 
     logic buzzer_out;
 
     buzzer U_BUZZER (
@@ -190,7 +164,7 @@ module top_level #(
         .buzzer_out(buzzer_out)
     );
 
-    // ---------------- Salidas ----------------
+    // Salidas 
     hex7seg U_HEX (
         .x({vel, vel[2]}),
         .seg(HEX0)
