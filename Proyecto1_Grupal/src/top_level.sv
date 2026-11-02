@@ -84,7 +84,7 @@ module top_level #(
         .ready(ready), .state(dc_state)
     );
 
-    // ---------------- Memoria de contrasenias ----------------
+    // Memoria de contrasenias 
     logic mem_toggle, hit, full;
     logic [3:0] used;
 
