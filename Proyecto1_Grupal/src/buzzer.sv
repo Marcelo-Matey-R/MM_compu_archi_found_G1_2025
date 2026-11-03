@@ -1,23 +1,5 @@
 import alu_types_pkg::*;
 
-// Buzzer pasivo: un tono distinto por evento, usando el pwm y un tick con divisor variable.
-//
-// evento  sonido                 tono      NUM_DIV
-// 000     silencio               -         -
-// 001     metodo de prueba       500 Hz    14285
-// 010     contrasenia registrada 2000 Hz   3570
-// 011     contrasenia valida     1500 Hz   4761
-// 100     contrasenia invalida   250 Hz    28570
-// 101     abriendo puerta        1000 Hz   7142
-// 110     cerrando puerta        700 Hz    10203
-// 111     sin uso (silencio)
-//
-// f_tono = f_step / 7 (el pwm cuenta 7 pasos), y tick_var da un step cada NUM_DIV + 1 ciclos:
-// NUM_DIV = 50e6 / (7 * f_tono) - 1
-//
-// El modulo suena mientras 'evento' se mantenga. Quien lo controla decide cuanto dura
-// (continuo para prueba/abriendo/cerrando, corto para registrada/valida/invalida).
-
 module buzzer (
     input logic clk,
     input logic rst,                // activo en bajo
@@ -34,7 +16,7 @@ module buzzer (
     localparam logic [S - 1:0] D5 = 15'd7142;   // abriendo
     localparam logic [S - 1:0] D6 = 15'd10203;  // cerrando
 
-    // ---------------- Decodificador de evento ----------------
+    // Decodificador de evento 
     logic n0, n1, n2;
     logic e1, e2, e3, e4, e5, e6;
     logic activo;
@@ -52,7 +34,7 @@ module buzzer (
 
     or U_ACTIVO(activo, e1, e2, e3, e4, e5, e6);
 
-    // ---------------- Divisor segun el evento ----------------
+    // Divisor segun el evento 
     // Cada bit del divisor es el OR de las lineas e_k cuya constante tiene ese bit en 1
     logic [S - 1:0] div;
     logic [S - 1:0] t1, t2, t3, t4, t5, t6;
@@ -70,7 +52,7 @@ module buzzer (
         end
     endgenerate
 
-    // ---------------- Tick con divisor variable + pwm ----------------
+    //Tick con divisor variable + pwm 
     logic step;
     logic pwm_raw;
 
