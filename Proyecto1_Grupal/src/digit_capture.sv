@@ -1,29 +1,3 @@
-// Ingreso de la contrasenia: tres digitos de 3 bits (0 a 5 dedos), uno por cada captura.
-// Reemplaza a la ruta serial anterior (sr_165 + dsr_595 + select_storage).
-//
-// Cada pulso en 'capture' guarda el digito que se esta mostrando en ese momento:
-//   1er pulso -> d1 (operacion de la ALU)
-//   2do pulso -> d2 (operando A)
-//   3er pulso -> d3 (operando B)
-// Despues del 3er pulso 'ready' vale 1 durante un ciclo y la MEF vuelve a esperar el 1er digito.
-// d1, d2 y d3 se quedan guardados hasta que llegue el siguiente 1er pulso,
-// asi que quien los use debe leerlos (o copiarlos) cuando ready = 1.
-//
-// 'capture' es un pulso de un ciclo. Puede venir del flanco de un boton (sync_edge_detector)
-// o de un tick lento; este modulo no depende de cual.
-//
-// Codificacion de estados (S1 S0):
-//   00 = ESPERA_D1    01 = ESPERA_D2    10 = ESPERA_D3    11 = LISTO
-//
-// Ecuaciones de siguiente estado (cap = capture):
-//   nextS1 = !S1 * S0 * cap  +  S1 * !S0
-//   nextS0 = !S1 * !S0 * cap  +  !S1 * S0 * !cap  +  S1 * !S0 * cap
-// Salida (Moore):
-//   ready = S1 * S0
-// Escrituras de los registros (solo cuando hay captura en ese estado):
-//   we1 = !S1 * !S0 * cap
-//   we2 = !S1 *  S0 * cap
-//   we3 =  S1 * !S0 * cap
 
 module digit_capture (
     input logic clk,
@@ -39,7 +13,7 @@ module digit_capture (
     output logic [1:0] state        // para el display o el buzzer guia (que digito toca)
 );
 
-    // ---------------- Sincronizador del digito (viene de los sensores) ----------------
+    //  Sincronizador del digito (viene de los sensores) 
     logic [2:0] digit_ff1;
     logic [2:0] digit_s;
 
@@ -53,7 +27,7 @@ module digit_capture (
         end
     end
 
-    // ---------------- MEF ----------------
+    //  MEF 
     logic [1:0] current_state;
     logic [1:0] next_state;
 
@@ -92,7 +66,7 @@ module digit_capture (
 
     assign state = current_state;
 
-    // ---------------- Registros de los digitos ----------------
+    //  Registros de los digitos
     logic we1, we2, we3;
     logic [2:0] d1_next, d2_next, d3_next;
 
