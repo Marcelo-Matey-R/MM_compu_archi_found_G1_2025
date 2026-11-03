@@ -1,23 +1,3 @@
-// Memoria de contrasenias: 4 ranuras de 9 bits, cada una con su bit de valido.
-//
-// - hit: el codigo actual ya esta guardado en alguna ranura valida (contrasenia valida).
-// - Con un pulso en 'toggle' (lo da la MEF general: modo ADMIN y ready):
-//     si hit = 1 -> se borra la ranura donde esta (se apaga su bit de valido)
-//     si hit = 0 -> se guarda en la primera ranura libre
-// - full: las 4 ranuras estan ocupadas (si llega una nueva no se guarda en ningun lado).
-// - El reset (activo en bajo) borra todas las contrasenias.
-//
-// Primera ranura libre (v_k = bit de valido de la ranura k):
-//   w0 = !v0
-//   w1 = v0 * !v1
-//   w2 = v0 * v1 * !v2
-//   w3 = v0 * v1 * v2 * !v3
-//   full = v0 * v1 * v2 * v3
-//
-// Escritura y borrado:
-//   agregar = toggle * !hit           we_k    = agregar * w_k
-//   borrar_k = toggle * hit_k
-//   v_k (siguiente) = (v_k + we_k) * !borrar_k
 
 module password_memory (
     input logic clk,
@@ -40,7 +20,6 @@ module password_memory (
     logic [3:0] we;                 // escribir code en la ranura k
     logic [3:0] borrar;             // borrar la ranura k
 
-    // ---------------- Primera ranura libre ----------------
     logic nv0, nv1, nv2, nv3;
 
     not U_NV0(nv0, v[0]);
@@ -55,14 +34,14 @@ module password_memory (
 
     and U_FULL(full, v[0], v[1], v[2], v[3]);
 
-    // ---------------- hit y agregar ----------------
+   
     logic nhit, agregar;
 
     or  U_HIT(hit, hit_k[0], hit_k[1], hit_k[2], hit_k[3]);
     not U_NHIT(nhit, hit);
     and U_AGREGAR(agregar, toggle, nhit);
 
-    // ---------------- Cada ranura ----------------
+    
     genvar k;
     generate
         for (k = 0; k < 4; k++) begin : ranura
