@@ -35,7 +35,7 @@
 
 \title{Tarea 2: M\'etricas sobre un procesador RISC-V\\[2pt]
 \large Accesos a memoria, saltos y operaciones entre registros en un pipeline de 5 etapas}
-\author{Jorge Pablo Porras Alvarado \\ \pendiente{nombres de los dem\'as integrantes del grupo}}
+\author{Jorge Pablo Porras Alvarado \\ Josué Adrián Pérez Pérez \\ \pendiente{nombres de los dem\'as integrantes del grupo}}
 \date{\today}
 
 \begin{document}
@@ -119,7 +119,24 @@ penalizaci\'on de ciclos por cada salto tomado, que el forwarding no elimina.
 En los resultados de la secci\'on~\ref{sec:resultados} se observa una
 penalizaci\'on de 2 ciclos por salto tomado.
 
-\pendiente{agregar el marco te\'orico de saltos (Parte 2) y de operaciones
+\paragraph{Saltos.}
+RISC-V tiene dos tipos de instrucciones que cambian el flujo del programa: los
+saltos \emph{condicionales} (\texttt{beq}, \texttt{bne}, \texttt{blt},
+\texttt{bge}, etc.), que saltan solo si se cumple una comparaci\'on entre dos
+registros, y los saltos \emph{incondicionales} (\texttt{jal}, \texttt{jalr}),
+que siempre saltan \cite{harris,patterson}. Un salto condicional puede ser
+\emph{tomado} o \emph{no tomado}; uno incondicional siempre es tomado.
+ 
+Mientras un salto se resuelve en EX, el procesador sigue buscando las
+instrucciones que vienen despu\'es en memoria, es decir, se comporta como si
+predijera que el salto \emph{no} se toma. Si el salto no se toma, esas
+instrucciones son las correctas y no se pierde ning\'un ciclo; si se toma, hay
+que descartarlas. Por lo tanto, la penalizaci\'on depende solo de los saltos
+tomados \cite{patterson}. Las t\'ecnicas de predicci\'on de saltos buscan
+reducir esa penalizaci\'on adivinando el resultado antes de EX, a partir del
+sentido del salto o de su historial de ejecuci\'on \cite{smith}.
+
+\pendiente{agregar el marco te\'orico de operaciones
 entre registros (Parte 3), con referencias IEEE}
 
 %==========================================================
@@ -351,10 +368,272 @@ resuelva en EX.
 \subsection{Parte 2: Saltos}
 %----------------------------------------------------------
 
-\pendiente{c\'odigo final en ensamblador con comentarios que cuantifiquen los
-saltos (miles), explicaci\'on de por qu\'e funciona, versi\'on transformada para
-el procesador sin hazard con su tabla de dependencias, y resultados de
-Execution info en los dos procesadores}
+\label{sec:parte2}
+ 
+\subsubsection{Programa}
+ 
+Para comprobar que solo los saltos tomados tienen costo, el programa debe
+ejecutar saltos tomados y no tomados en cantidades conocidas. Se recorre un
+ciclo de $N=2000$ vueltas y, en cada una, un salto condicional decide si el
+\'indice $i$ es par o impar: si es par, salta a sumar un contador de pares; si
+es impar, no salta, suma un contador de impares y luego salta
+incondicionalmente al final del cuerpo. La condici\'on del ciclo se eval\'ua al
+final de cada vuelta. El c\'odigo final es:
+ 
+\begin{lstlisting}[style=asm,caption={Programa de saltos (versi\'on para el procesador con hazard unit).},label={lst:saltos}]
+    addi s2, zero, 0 #idx: i = 0
+    addi t2, zero, 2000 #N = 2000
+    addi s1, zero, 0 # contador impares
+    addi s0, zero, 0 # contador pares
+LOOP:
+    andi t0, s2, 1 # se ejecuta 2000 veces
+    beq t0, zero, PAR # se ejecuta 2000 veces, se toma el salto 1000 veces y no se toma 1000 veces
+    addi s1, s1, 1 # suma impares, se ejecuta 1000 veces
+    jal zero, SIGUE # se toma este salto 1000 veces
+PAR:
+    addi s0, s0, 1 # suma pares, se ejecuta 1000 veces
+SIGUE:
+    addi s2, s2, 1 # se ejecuta 2000 veces
+    blt s2, t2, LOOP # se toma el salto 1999 veces y no se toma 1 vez
+done:
+    li a7, 10 # syscall exit
+    nop
+    nop
+    nop
+    ecall
+# se ejecutan 5000 saltos, de los cuales solo se toman 3999 y no se toman 1001
+\end{lstlisting}
+ 
+Los tres \texttt{nop} antes del \texttt{ecall} no forman parte de la medici\'on
+de saltos; su justificaci\'on se da en la secci\'on~\ref{sec:ecall}.
+ 
+\paragraph{Cuantificaci\'on.}
+La Tabla~\ref{tab:saltos} resume cu\'antas veces se ejecuta cada salto y cu\'antas
+veces se toma.
+ 
+\begin{table}[h]
+  \centering
+  \begin{tabular}{@{}lrrr@{}}
+    \toprule
+    Instrucci\'on & Ejecuciones & Tomados & No tomados \\
+    \midrule
+    \texttt{beq t0, zero, PAR}  & 2000 & 1000 & 1000 \\
+    \texttt{jal zero, SIGUE}    & 1000 & 1000 & 0    \\
+    \texttt{blt s2, t2, LOOP}   & 2000 & 1999 & 1    \\
+    \midrule
+    Total                       & 5000 & 3999 & 1001 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Cuantificaci\'on de los saltos del programa.}
+  \label{tab:saltos}
+\end{table}
+ 
+Las vueltas pares ejecutan 5 instrucciones (\texttt{andi}, \texttt{beq},
+\texttt{addi s0}, \texttt{addi s2}, \texttt{blt}) y las impares 6, porque se
+agregan \texttt{addi s1} y \texttt{jal}. Con las 4 instrucciones de inicio y
+las 5 del final (\texttt{li}, tres \texttt{nop} y \texttt{ecall}):
+\begin{align}
+  N_{\text{instr}} &= 4 + 1000 \times 5 + 1000 \times 6 + 5 = 11009, \\
+  N_{\text{tomados}} &= 1000 + 1000 + 1999 = 3999 .
+\end{align}
+ 
+\paragraph{Por qu\'e funciona.}
+La instrucci\'on \texttt{andi t0, s2, 1} conserva solo el bit menos
+significativo de $i$, que vale 0 si $i$ es par y 1 si es impar. Como $i$
+recorre los valores $0, 1, \dots, 1999$, hay exactamente 1000 pares y 1000
+impares, de modo que el \texttt{beq} se toma 1000 veces y no se toma otras
+1000. El \texttt{jal} solo se ejecuta en el camino impar, as\'i que se ejecuta
+1000 veces y siempre se toma. Como la condici\'on del ciclo est\'a al final, el
+cuerpo se ejecuta para $i = 0$ antes de evaluar \texttt{blt}; despu\'es de
+incrementar, \texttt{blt} compara $i+1 < 2000$, que se cumple 1999 veces y
+falla una sola vez, cuando $i+1 = 2000$.
+ 
+\paragraph{Verificaci\'on.}
+Al terminar, los contadores deben valer $\texttt{s0} = \texttt{s1} = 1000 =
+\texttt{0x3E8}$, lo que demuestra que cada camino del \texttt{beq} se ejecut\'o
+las veces calculadas.
+ 
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.9\textwidth]{memoria2.png}
+  \caption{Estado de los registros $\texttt{s0}$ y $\texttt{s1}$ al concluir el programa,}
+\end{figure}
+ 
+\subsubsection{Versi\'on para el procesador sin hardware de riesgos}
+ 
+Los saltos tambi\'en leen registros, por lo que participan en dependencias RAW.
+La Tabla~\ref{tab:dependencias2} resume los pares del programa y los
+\texttt{nop} insertados con la misma regla de la Parte~1: una distancia m\'inima
+de 3 instrucciones entre la que escribe y la que lee.
+ 
+\begin{table}[h]
+  \centering
+  \small
+  \begin{tabular}{@{}llcccc@{}}
+    \toprule
+    Escribe & Lee & Reg. & Dist. original & \texttt{nop} & Dist. final \\
+    \midrule
+    \texttt{andi t0}          & \texttt{beq t0}                & \texttt{t0} & 1 & 2 & 3 \\
+    \texttt{addi s2} (SIGUE)  & \texttt{blt s2}                & \texttt{s2} & 1 & 2 & 3 \\
+    \texttt{addi s2} (SIGUE)  & \texttt{andi} (sig. vuelta)    & \texttt{s2} & 2 & (los mismos 2) & 4 \\
+    \texttt{addi s2} (inicio) & primer \texttt{andi}           & \texttt{s2} & 4 & 0 & 4 \\
+    \texttt{addi s0} (inicio) & primer \texttt{addi s0}        & \texttt{s0} & 5 & 0 & 5 \\
+    \texttt{li a7}            & \texttt{ecall}                 & \texttt{a7} & 1 & 3 & 4 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Dependencias RAW del programa de saltos y \texttt{nop} colocados. La
+  distancia se mide en el orden de ejecuci\'on.}
+  \label{tab:dependencias2}
+\end{table}
+ 
+Los contadores \texttt{s0} y \texttt{s1} solo se vuelven a leer en vueltas
+posteriores, muy lejos de su escritura. Despu\'es de los saltos tomados no se
+colocaron \texttt{nop}, porque el procesador descarta las instrucciones buscadas
+en el camino equivocado (secci\'on~\ref{sec:resultados}). El c\'odigo
+transformado es:
+ 
+\begin{lstlisting}[style=asm,caption={Versi\'on con \texttt{nop} para el procesador sin forwarding ni detecci\'on de hazards.},label={lst:saltos_nops}]
+    addi s2, zero, 0 #idx: i = 0
+    addi t2, zero, 2000 #N = 2000
+    addi s1, zero, 0 # contador impares
+    addi s0, zero, 0 # contador pares
+LOOP:
+    andi t0, s2, 1 # se ejecuta 2000 veces
+    nop # RAW andi -> beq (t0): 2 nop
+    nop
+    beq t0, zero, PAR # se ejecuta 2000 veces, se toma el salto 1000 veces y no se toma 1000 veces
+    addi s1, s1, 1 # suma impares, se ejecuta 1000 veces
+    jal zero, SIGUE # se toma este salto 1000 veces
+PAR:
+    addi s0, s0, 1 # suma pares, se ejecuta 1000 veces
+SIGUE:
+    addi s2, s2, 1 # se ejecuta 2000 veces
+    nop # RAW addi -> blt (s2): 2 nop
+    nop
+    blt s2, t2, LOOP # se toma el salto 1999 veces y no se toma 1 vez, se ejecuta 2000 veces
+done:
+    li a7, 10 # syscall exit
+    nop
+    nop
+    nop
+    ecall
+# se ejecutan 5000 saltos, de los cuales solo se toman 3999 y no se toman 1001
+\end{lstlisting}
+ 
+Se agregan 4 \texttt{nop} por vuelta, as\'i que
+\begin{equation}
+  N_{\text{instr}} = 11009 + 4 \times 2000 = 19009 .
+\end{equation}
+Los \texttt{nop} no son saltos, por lo que la cuantificaci\'on de la
+Tabla~\ref{tab:saltos} no cambia.
+ 
+\subsubsection{Terminaci\'on del programa: el \texttt{ecall}}
+\label{sec:ecall}
+ 
+En Ripes, el n\'umero de llamada al sistema se pasa en \texttt{a7}; con
+$\texttt{a7} = 10$, \texttt{ecall} termina el programa. Al probar distintas
+formas de terminar se encontr\'o que el \texttt{ecall} tiene un costo y un
+comportamiento propios, resumidos en la Tabla~\ref{tab:ecall}.
+ 
+\begin{table}[h]
+  \centering
+  \small
+  \begin{tabular}{@{}lllc@{}}
+    \toprule
+    Procesador & Antes del \texttt{ecall} & Resultado & Ciclos extra \\
+    \midrule
+    Con hazard unit & \texttt{li a7} a distancia 1           & termina bien & 2 \\
+    Con hazard unit & \texttt{li a7} + 3 \texttt{nop}        & termina bien & 2 \\
+    Con hazard unit & \texttt{blt} (\texttt{li a7} al inicio) & termina bien & 1 \\
+    Sin hazard unit & \texttt{li a7} + 3 \texttt{nop}        & termina bien & 0 \\
+    Sin hazard unit & \texttt{blt} (\texttt{li a7} al inicio) & termina tras 1 vuelta & --- \\
+    \bottomrule
+  \end{tabular}
+  \caption{Comportamiento del \texttt{ecall} de salida seg\'un el procesador y
+  lo que lo precede. Los ciclos extra son los que exceden el modelo de la
+  ecuaci\'on~\eqref{eq:modelo2}.}
+  \label{tab:ecall}
+\end{table}
+ 
+El c\'odigo fuente de Ripes explica estos resultados \cite{ripes_src}:
+ 
+\begin{itemize}
+  \item \textbf{Con hazard unit}, el \texttt{ecall} se atiende en la etapa EX.
+        Como depende impl\'icitamente de todos los registros, la unidad de
+        hazards lo detiene mientras alguna instrucci\'on en MEM o WB tenga una
+        escritura pendiente al banco de registros. Si las dos instrucciones
+        anteriores escriben un registro, el atasco es de 2 ciclos; si solo la
+        segunda anterior escribe (el \texttt{blt} no escribe), es de 1 ciclo.
+        Los \texttt{nop} (\texttt{addi zero, zero, 0}) cuentan como escrituras,
+        por lo que no evitan el atasco.
+  \item \textbf{Sin hazard unit}, el \texttt{ecall} se atiende en la etapa ID,
+        sin ning\'un atasco. Por eso necesita que \texttt{li a7} est\'e a
+        distancia 4 (tres \texttt{nop}). Adem\'as, si el \texttt{ecall} est\'a
+        justo despu\'es del \texttt{blt}, llega a ID en el mismo ciclo en que el
+        \texttt{blt} se resuelve en EX y se ejecuta antes de ser descartado.
+        Con \texttt{a7} ya cargado desde el inicio, el programa termin\'o al
+        final de la primera vuelta, con $\texttt{s0} = 1$ y $\texttt{s1} = 0$.
+\end{itemize}
+ 
+El \'ultimo caso es un hazard de control sobre una instrucci\'on con efectos
+fuera del pipeline: una instrucci\'on buscada en el camino equivocado de un
+salto no deber\'ia tener efectos hasta que el salto se confirme. Por estas
+razones, ambas versiones finales terminan con \texttt{li a7, 10} seguido de
+tres \texttt{nop} antes del \texttt{ecall}.
+ 
+\subsubsection{Resultados}
+\label{sec:resultados2}
+ 
+\begin{table}[h]
+  \centering
+  \begin{tabular}{@{}lrr@{}}
+    \toprule
+    M\'etrica & Sin hazard (con \texttt{nop}) & Con hazard (original) \\
+    \midrule
+    Ciclos                          & 27011  & 19013  \\
+    Instrucciones retiradas         & 19009  & 11009  \\
+    CPI                             & 1.42   & 1.73   \\
+    IPC                             & 0.704  & 0.579  \\
+    \texttt{nop} ejecutados         & 8003   & 3      \\
+    Saltos ejecutados               & 5000   & 5000   \\
+    Saltos tomados / no tomados     & 3999 / 1001 & 3999 / 1001 \\
+    \bottomrule
+  \end{tabular}
+  \caption{M\'etricas obtenidas en Ripes para el programa de saltos en ambos procesadores.}
+  \label{tab:resultados2}
+\end{table}
+ 
+\begin{figure}[h]
+  \centering
+  \begin{minipage}[t]{0.42\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{execinfo2_sin_hazard.png}\\[2pt]
+    {\small (a) Sin hazard (con \texttt{nop})}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{0.42\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{execinfo2_con_hazard.png}\\[2pt]
+    {\small (b) Con hazard (original)}
+  \end{minipage}
+  \caption{Execution info de Ripes para el programa de saltos. El campo Clock
+  rate no se utiliza en el an\'alisis.}
+\end{figure}
+ 
+\paragraph{Modelo de ciclos.}
+Al modelo de la Parte~1 se le agrega el atasco del \texttt{ecall},
+$S_{\text{ecall}}$:
+\begin{equation}
+  C = N_{\text{instr}} + 4 + 2\,N_{\text{tomados}} + S_{\text{ecall}} ,
+  \label{eq:modelo2}
+\end{equation}
+con $S_{\text{ecall}} = 2$ en el procesador con hazard unit y $0$ en el otro
+(secci\'on~\ref{sec:ecall}). Con $N_{\text{tomados}} = 3999$:
+\begin{align}
+  \text{con hazard:} &\quad 11009 + 4 + 2 \times 3999 + 2 = 19013, \\
+  \text{sin hazard:} &\quad 19009 + 4 + 2 \times 3999 + 0 = 27011 ,
+\end{align}
+que coinciden exactamente con lo medido. Ninguno de los 1001 saltos no tomados
+aparece en el modelo.
 
 %----------------------------------------------------------
 \subsection{Parte 3: Operaciones entre registros}
@@ -416,7 +695,51 @@ hazard unit y m\'as \texttt{nop} en el otro.
 \subsection{Parte 2: Saltos}
 %----------------------------------------------------------
 
-\pendiente{discusi\'on de los resultados de saltos y relaci\'on con la teor\'ia}
+\paragraph{Solo los saltos tomados cuestan.}
+Los ciclos que exceden a las instrucciones son
+\begin{equation}
+  C - N_{\text{instr}} = 4 + 2 \times 3999 + S_{\text{ecall}},
+\end{equation}
+sin ning\'un t\'ermino para los 1001 saltos no tomados. Esto confirma que el
+pipeline de Ripes contin\'ua buscando instrucciones de forma secuencial mientras
+resuelve el salto, lo que equivale a predecir siempre ``no tomado''
+\cite{patterson}: cuando acierta, el salto no tiene costo; cuando falla, se
+pagan 2 ciclos.
+ 
+\paragraph{Peso de los saltos en el tiempo de ejecuci\'on.}
+Los saltos tomados imponen $2 \times 3999 = 7998$ ciclos en ambos
+procesadores, un $42\%$ de los 19013 ciclos con hazard unit y un $30\%$ de los
+27011 sin ella. Ni el forwarding ni los \texttt{nop} reducen este costo, porque
+es un hazard de control y no de datos.
+ 
+\paragraph{El CPI vuelve a ser enga\~noso.}
+Igual que en la Parte~1, la versi\'on con \texttt{nop} tiene mejor CPI (1.42
+contra 1.73), pero tarda $27011/19013 \approx 1.42$ veces m\'as. La diferencia
+de ciclos, $27011 - 19013 = 7998$, corresponde a los 8000 \texttt{nop}
+agregados en el ciclo menos los 2 ciclos del atasco del \texttt{ecall}, que
+solo ocurre con hazard unit.
+ 
+\paragraph{C\'omo se podr\'ia reducir el costo.}
+\begin{itemize}
+  \item \textbf{Estructura del ciclo.} Con la condici\'on al final, el ciclo
+        necesita una sola instrucci\'on de control por vuelta (\texttt{blt}).
+        El programa de la Parte~1, con la condici\'on al inicio, necesita dos
+        (\texttt{bge} y \texttt{jal}). Ambas formas pagan un salto tomado por
+        vuelta, pero la de la Parte~1 ejecuta una instrucci\'on m\'as por
+        vuelta, es decir, 2000 ciclos m\'as en total.
+  \item \textbf{Predicci\'on de saltos.} El \texttt{blt} se toma en 1999 de
+        2000 ejecuciones, as\'i que un predictor que suponga ``tomado'' para
+        los saltos hacia atr\'as acertar\'ia casi siempre. El \texttt{beq}, en
+        cambio, alterna entre tomado y no tomado, y un predictor que repite
+        el \'ultimo resultado de cada salto fallar\'ia en todas sus
+        ejecuciones despu\'es de la primera \cite{smith}.
+  \item \textbf{Transformaci\'on de c\'odigo.} Como la paridad de $i$
+        alterna, desenrollar el ciclo dos veces (procesar un \'indice par y uno
+        impar por vuelta) eliminar\'ia el \texttt{beq} y el \texttt{jal}, es
+        decir, al menos 2000 saltos tomados y 4000 ciclos de penalizaci\'on,
+        adem\'as de reducir a la mitad las ejecuciones del \texttt{blt}
+        \cite{patterson}.
+\end{itemize}
 
 %----------------------------------------------------------
 \subsection{Parte 3: Operaciones entre registros}
@@ -440,8 +763,8 @@ procesadores.
     Accesos a memoria & Sin hazard (con \texttt{nop}) & 30013 & 26007 & 1.15 & 0.867 \\
                       & Con hazard                    & 18013 & 14007 & 1.29 & 0.778 \\
     \midrule
-    Saltos            & Sin hazard (con \texttt{nop}) & \pend & \pend & \pend & \pend \\
-                      & Con hazard                    & \pend & \pend & \pend & \pend \\
+    Saltos            & Sin hazard (con \texttt{nop}) & 27011 & 19009 & 1.42 & 0.704 \\
+                      & Con hazard                    & 19013 & 11009 & 1.73 & 0.579 \\                 
     \midrule
     Operaciones entre & Sin hazard (con \texttt{nop}) & \pend & \pend & \pend & \pend \\
     registros         & Con hazard                    & \pend & \pend & \pend & \pend \\
@@ -473,7 +796,16 @@ con la teor\'ia referenciada en IEEE}
         que la comparaci\'on debe hacerse en ciclos totales.
   \item Los saltos tomados impusieron $4002$ ciclos en ambos procesadores,
         lo que muestra que los hazards de control no los resuelve el forwarding.
-  \item \pendiente{conclusiones de la Parte 2 (saltos)}
+  \item \textbf{Parte 2 (saltos).} El programa ejecuta 5000 saltos, de los
+        cuales 3999 son tomados y 1001 no tomados, y los contadores confirman
+        1000 vueltas por cada camino. Los ciclos medidos se ajustan exactamente
+        a $C = N + 4 + 2N_{\text{tomados}} + S_{\text{ecall}}$: solo los saltos
+        tomados tienen costo, 2 ciclos cada uno, y representan el 42\% del
+        tiempo en el procesador con hazard unit.
+  \item El \texttt{ecall} de salida se atiende en EX con hazard unit, con un
+        atasco de hasta 2 ciclos, y en ID sin ella, donde puede ejecutarse
+        desde el camino equivocado de un salto si \texttt{a7} ya est\'a
+        cargado.
   \item \pendiente{conclusiones de la Parte 3 (operaciones entre registros)}
   \item \pendiente{conclusi\'on general que integre los tres aspectos}
 \end{itemize}
@@ -488,6 +820,12 @@ con la teor\'ia referenciada en IEEE}
 \bibitem{patterson} D.~A. Patterson y J.~L. Hennessy, \emph{Computer
   Organization and Design RISC-V Edition: The Hardware Software Interface}.
   Morgan Kaufmann, 2017.
+\bibitem{smith} J.~E. Smith, ``A study of branch prediction strategies,'' en
+  \emph{Proc. 8th Annual Symposium on Computer Architecture (ISCA)}, 1981,
+  pp.~135--148.
+\bibitem{ripes_src} M.~B. Petersen, ``Ripes: A graphical processor simulator
+  and assembly editor for the RISC-V ISA,'' repositorio de GitHub. [En l\'inea].
+  Disponible: \url{https://github.com/mortbopet/Ripes}
 % \pendiente{agregar mas referencias IEEE sobre pipeline, hazards y jerarquia de memoria}
 \end{thebibliography}
 
