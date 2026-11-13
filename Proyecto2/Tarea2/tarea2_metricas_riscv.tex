@@ -35,7 +35,7 @@
 
 \title{Tarea 2: M\'etricas sobre un procesador RISC-V\\[2pt]
 \large Accesos a memoria, saltos y operaciones entre registros en un pipeline de 5 etapas}
-\author{Jorge Pablo Porras Alvarado \\ Josué Adrián Pérez Pérez \\ \pendiente{nombres de los dem\'as integrantes del grupo}}
+\author{Jorge Pablo Porras Alvarado \\ Josué Adrián Pérez Pérez \\ Marcelo Matey Rodr\'iguez}
 \date{\today}
 
 \begin{document}
@@ -74,7 +74,7 @@ Cada programa se ejecuta en dos procesadores de 5 etapas de Ripes:
 
 El documento presenta primero el marco te\'orico, luego el desarrollo de cada
 programa, despu\'es la discusi\'on de los resultados y, finalmente, las
-conclusiones. \pendiente{revisar esta introducci\'on cuando est\'en las tres partes}
+conclusiones.
 
 %==========================================================
 \section{Marco te\'orico}
@@ -136,8 +136,28 @@ tomados \cite{patterson}. Las t\'ecnicas de predicci\'on de saltos buscan
 reducir esa penalizaci\'on adivinando el resultado antes de EX, a partir del
 sentido del salto o de su historial de ejecuci\'on \cite{smith}.
 
-\pendiente{agregar el marco te\'orico de operaciones
-entre registros (Parte 3), con referencias IEEE}
+\paragraph{Operaciones entre registros.}
+RISC-V es una arquitectura de carga y almacenamiento (\emph{load/store}): las
+operaciones aritm\'eticas y l\'ogicas solo operan sobre registros, y \'unicamente
+\texttt{lw} y \texttt{sw} acceden a la memoria de datos
+\cite{harris,patterson,riscv}. Las instrucciones de tipo R (\texttt{add},
+\texttt{sub}, \texttt{and}, \texttt{or}, \texttt{xor}, \texttt{sll},
+\texttt{srl}, \texttt{slt}) leen dos registros fuente en ID, calculan el
+resultado en la ALU durante EX, no realizan ning\'un acceso en MEM y escriben el
+registro destino en WB. Las instrucciones con inmediato (\texttt{addi},
+\texttt{andi}) combinan un registro con una constante, por lo que en esta tarea
+no se cuentan como operaciones entre registros.
+
+Un programa formado solo por instrucciones de tipo R independientes entre s\'i es
+el mejor caso del pipeline: cada ciclo entra una instrucci\'on y sale otra, y el
+CPI tiende a 1 \cite{patterson}. El costo aparece cuando una instrucci\'on usa el
+resultado de la anterior (dependencia RAW). Con forwarding, el resultado que la
+ALU calcul\'o al final de EX se reenv\'ia a la entrada de la ALU de la instrucci\'on
+siguiente, desde los registros de segmentaci\'on EX/MEM y MEM/WB, de modo que una
+dependencia entre dos operaciones de ALU consecutivas no produce ning\'un atasco
+\cite{harris,patterson}. Sin ese hardware, cada dependencia exige separar las
+instrucciones al menos 3 posiciones, es decir, 2 \texttt{nop} en el peor caso,
+como se determin\'o en la secci\'on~\ref{sec:parte1}.
 
 %==========================================================
 \section{Desarrollo}
@@ -456,7 +476,7 @@ las veces calculadas.
 \begin{figure}[h]
   \centering
   \includegraphics[width=0.9\textwidth]{memoria2.png}
-  \caption{Estado de los registros $\texttt{s0}$ y $\texttt{s1}$ al concluir el programa,}
+  \caption{Estado de los registros $\texttt{s0}$ y $\texttt{s1}$ al concluir el programa.}
 \end{figure}
  
 \subsubsection{Versi\'on para el procesador sin hardware de riesgos}
@@ -639,11 +659,222 @@ aparece en el modelo.
 \subsection{Parte 3: Operaciones entre registros}
 %----------------------------------------------------------
 
-\pendiente{c\'odigo final en ensamblador con comentarios que cuantifiquen las
-operaciones entre registros (miles), explicaci\'on de por qu\'e funciona,
-versi\'on transformada para el procesador sin hazard con su tabla de
-dependencias, y resultados de Execution info en los dos procesadores}
+\label{sec:parte3}
 
+\subsubsection{Programa}
+
+El programa ejecuta un ciclo de $N=2000$ vueltas. En cada vuelta se realizan
+8 operaciones de tipo R, y cada una usa el resultado de la anterior, de modo que
+forman una cadena de dependencias RAW. Los operandos \texttt{t0} y \texttt{t1} se
+incrementan al final de cada vuelta para que los resultados cambien. Los
+incrementos y el contador del ciclo son instrucciones \texttt{addi} (tipo I), por
+lo que no se cuentan como operaciones entre registros. El c\'odigo final se muestra en el
+Listado~\ref{lst:regs}:
+
+\begin{lstlisting}[style=asm,caption={Programa de operaciones entre registros (versi\'on para el procesador con hazard unit).},label={lst:regs}]
+    addi s2, zero, 0      # idx: i = 0
+    addi t0, zero, 3      # operando A = 3
+    addi t1, zero, 5      # operando B = 5
+    addi t2, zero, 2000   # N = 2000
+
+LOOP:
+    addi s2, s2, 1        # i = i + 1, se ejecuta 2000 veces (tipo I, no cuenta)
+    add  s3, t0, t1       # operacion entre registros #1, se ejecuta 2000 veces
+    sub  s4, s3, t0       # operacion entre registros #2, se ejecuta 2000 veces (RAW con s3)
+    and  s5, s4, t1       # operacion entre registros #3, se ejecuta 2000 veces (RAW con s4)
+    or   s6, s5, t0       # operacion entre registros #4, se ejecuta 2000 veces (RAW con s5)
+    xor  s7, s6, t1       # operacion entre registros #5, se ejecuta 2000 veces (RAW con s6)
+    sll  s8, s7, t0       # operacion entre registros #6, se ejecuta 2000 veces (RAW con s7)
+    srl  s9, s8, t1       # operacion entre registros #7, se ejecuta 2000 veces (RAW con s8)
+    slt  s10, s9, t0      # operacion entre registros #8, se ejecuta 2000 veces (RAW con s9)
+    addi t0, t0, 1        # A = A + 1, se ejecuta 2000 veces (tipo I, no cuenta)
+    addi t1, t1, 2        # B = B + 2, se ejecuta 2000 veces (tipo I, no cuenta)
+    blt  s2, t2, LOOP     # se ejecuta 2000 veces, se toma el salto 1999 veces y no se toma 1 vez
+
+done:
+    li   a7, 10           # syscall exit
+    ecall
+# se ejecutan 8 operaciones entre registros por vuelta x 2000 vueltas = 16000 operaciones
+# instrucciones totales: 4 (inicio) + 2000 x 12 (lazo) + 2 (salida) = 24006
+# las 7 dependencias RAW por vuelta se resuelven con el forwarding de la hazard unit, sin nop
+\end{lstlisting}
+
+\paragraph{Cuantificaci\'on.}
+Cada vuelta ejecuta 12 instrucciones: 8 de tipo R, 3 \texttt{addi} y el
+\texttt{blt}. Con las 4 instrucciones de inicio y las 2 del final (\texttt{li} y
+\texttt{ecall}):
+\begin{align}
+  N_{\text{instr}} &= 4 + 12 \times 2000 + 2 = 24006, \\
+  N_{\text{R}} &= 8 \times 2000 = 16000, \\
+  N_{\text{tomados}} &= 1999 .
+\end{align}
+
+\paragraph{Por qu\'e funciona.}
+Las instrucciones de tipo R no acceden a la memoria de datos ni cambian el flujo
+del programa, as\'i que cada una se retira exactamente una vez por vuelta y su
+n\'umero de ejecuciones se puede contar directamente: 8 por vuelta, 16000 en
+total, que es un valor verificable contra las instrucciones retiradas de
+Ripes. Al encadenar las operaciones, cada una consume el resultado de la
+anterior, lo que fuerza 7 dependencias RAW por vuelta (14000 en total) y permite
+observar el costo de resolverlas con y sin hardware. Los incrementos de
+\texttt{t0} y \texttt{t1} hacen que los resultados cambien en cada vuelta y que
+el procesador no repita siempre el mismo c\'alculo. La condici\'on del ciclo est\'a
+al final: despu\'es de incrementar, \texttt{blt} compara $i+1 < 2000$, que se
+cumple 1999 veces y falla una sola vez.
+
+\paragraph{Verificaci\'on.}
+En la \'ultima vuelta $\texttt{t0} = 2002$ y $\texttt{t1} = 4003$, y al terminar
+los registros deben valer lo indicado en la Tabla~\ref{tab:regs3}. La
+Figura~\ref{fig:regs3} muestra los registros de Ripes al concluir la ejecuci\'on,
+y los resultados de las 8 operaciones coinciden en ambos procesadores.
+
+\begin{table}[h]
+  \centering
+  \small
+  \begin{tabular}{@{}llrr@{}}
+    \toprule
+    Registro & Operaci\'on & Decimal & Hexadecimal \\
+    \midrule
+    \texttt{s3}  & \texttt{add}  & 6005     & \texttt{0x1775} \\
+    \texttt{s4}  & \texttt{sub}  & 4003     & \texttt{0xFA3} \\
+    \texttt{s5}  & \texttt{and}  & 4003     & \texttt{0xFA3} \\
+    \texttt{s6}  & \texttt{or}   & 4083     & \texttt{0xFF3} \\
+    \texttt{s7}  & \texttt{xor}  & 80       & \texttt{0x50} \\
+    \texttt{s8}  & \texttt{sll}  & 20971520 & \texttt{0x1400000} \\
+    \texttt{s9}  & \texttt{srl}  & 2621440  & \texttt{0x280000} \\
+    \texttt{s10} & \texttt{slt}  & 0        & \texttt{0x0} \\
+    \bottomrule
+  \end{tabular}
+  \caption{Valores finales esperados de los registros de la Parte~3.}
+  \label{tab:regs3}
+\end{table}
+
+\subsubsection{Versi\'on para el procesador sin hardware de riesgos}
+
+Con la misma regla de las partes anteriores (distancia m\'inima de 3
+instrucciones entre la que escribe y la que lee), la
+Tabla~\ref{tab:dependencias3} resume los pares RAW del programa.
+
+\begin{table}[h]
+  \centering
+  \small
+  \begin{tabular}{@{}llcccc@{}}
+    \toprule
+    Escribe & Lee & Reg. & Dist. original & \texttt{nop} & Dist. final \\
+    \midrule
+    cada operaci\'on R (7 pares) & la siguiente de la cadena & \texttt{s3}--\texttt{s9} & 1 & 2 & 3 \\
+    \texttt{addi t1}         & \texttt{add s3} (sig. vuelta) & \texttt{t1} & 3 & 0 & 3 \\
+    \texttt{addi t0}         & \texttt{add s3} (sig. vuelta) & \texttt{t0} & 4 & 0 & 4 \\
+    \texttt{addi s2}         & \texttt{blt}                  & \texttt{s2} & 11 & 0 & 11 \\
+    \texttt{addi t1} (inicio) & primer \texttt{add s3}       & \texttt{t1} & 3 & 0 & 3 \\
+    \texttt{li a7}           & \texttt{ecall}                & \texttt{a7} & 1 & 3 & 4 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Dependencias RAW del programa de operaciones entre registros y
+  \texttt{nop} colocados.}
+  \label{tab:dependencias3}
+\end{table}
+
+Los incrementos de \texttt{t0} y \texttt{t1} y el contador \texttt{s2} se
+colocaron en posiciones que dejan distancia suficiente sin \texttt{nop}: los
+\texttt{addi} de \texttt{t0} y \texttt{t1} van al final del cuerpo y el
+\texttt{blt} y el \texttt{addi s2} de la vuelta siguiente hacen de relleno. En
+cambio, la cadena de operaciones no se puede separar reordenando, porque cada
+instrucci\'on depende de la anterior, y requiere 2 \texttt{nop} por cada uno de
+sus 7 pares, es decir, 14 \texttt{nop} por vuelta. El c\'odigo transformado se muestra
+en el Listado~\ref{lst:regs_nops}:
+
+\begin{lstlisting}[style=asm,caption={Versi\'on con \texttt{nop} para el procesador sin forwarding ni detecci\'on de hazards.},label={lst:regs_nops}]
+    addi s2, zero, 0      # idx: i = 0
+    addi t0, zero, 3      # operando A = 3
+    addi t1, zero, 5      # operando B = 5
+    addi t2, zero, 2000   # N = 2000
+
+LOOP:
+    addi s2, s2, 1        # i = i + 1, se ejecuta 2000 veces (tipo I, no cuenta)
+    add  s3, t0, t1       # operacion entre registros #1, se ejecuta 2000 veces
+    nop                   # RAW s3 -> sub: 2 nop
+    nop
+    sub  s4, s3, t0       # operacion entre registros #2, se ejecuta 2000 veces
+    nop                   # RAW s4 -> and: 2 nop
+    nop
+    and  s5, s4, t1       # operacion entre registros #3, se ejecuta 2000 veces
+    nop                   # RAW s5 -> or: 2 nop
+    nop
+    or   s6, s5, t0       # operacion entre registros #4, se ejecuta 2000 veces
+    nop                   # RAW s6 -> xor: 2 nop
+    nop
+    xor  s7, s6, t1       # operacion entre registros #5, se ejecuta 2000 veces
+    nop                   # RAW s7 -> sll: 2 nop
+    nop
+    sll  s8, s7, t0       # operacion entre registros #6, se ejecuta 2000 veces
+    nop                   # RAW s8 -> srl: 2 nop
+    nop
+    srl  s9, s8, t1       # operacion entre registros #7, se ejecuta 2000 veces
+    nop                   # RAW s9 -> slt: 2 nop
+    nop
+    slt  s10, s9, t0      # operacion entre registros #8, se ejecuta 2000 veces
+    addi t0, t0, 1        # A = A + 1, se ejecuta 2000 veces (tipo I, no cuenta)
+    addi t1, t1, 2        # B = B + 2, se ejecuta 2000 veces (tipo I, no cuenta)
+    blt  s2, t2, LOOP     # s2 escrito lejos: sin RAW, se toma 1999 veces y no se toma 1 vez
+
+done:
+    li   a7, 10           # syscall exit
+    nop                   # RAW a7 -> ecall: 3 nop
+    nop
+    nop
+    ecall
+# se ejecutan 8 operaciones entre registros por vuelta x 2000 vueltas = 16000 operaciones
+# instrucciones totales: 4 (inicio) + 2000 x 26 (lazo: 12 + 14 nop) + 2 (salida) + 3 nop = 52009
+# los 14 nop por vuelta (28000 en total) son el costo de resolver los 7 RAW por software
+\end{lstlisting}
+
+Esta versi\'on ejecuta 26 instrucciones por vuelta (12 \'utiles y 14 \texttt{nop}),
+por lo que
+\begin{equation}
+  N_{\text{instr}} = 4 + 26 \times 2000 + 5 = 52009 .
+\end{equation}
+Los \texttt{nop} no son operaciones entre registros de la cadena, as\'i que
+$N_{\text{R}} = 16000$ en ambos procesadores.
+
+\subsubsection{Resultados}
+\label{sec:resultados3}
+
+La Tabla~\ref{tab:resultados3} reporta la informaci\'on de ejecuci\'on (Execution
+info) de Ripes para cada procesador, y la Figura~\ref{fig:execinfo3} muestra las
+capturas correspondientes.
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{@{}lrr@{}}
+    \toprule
+    M\'etrica & Sin hazard (con \texttt{nop}) & Con hazard (original) \\
+    \midrule
+    Ciclos                          & 56011  & 28010  \\
+    Instrucciones retiradas         & 52009  & 24006  \\
+    CPI                             & 1.08   & 1.17   \\
+    IPC                             & 0.929  & 0.857  \\
+    \texttt{nop} ejecutados         & 28003  & 0      \\
+    Operaciones entre registros     & 16000  & 16000  \\
+    Saltos tomados                  & 1999   & 1999   \\
+    \bottomrule
+  \end{tabular}
+  \caption{M\'etricas obtenidas en Ripes para el programa de operaciones entre registros en ambos procesadores.}
+  \label{tab:resultados3}
+\end{table}
+
+\paragraph{Modelo de ciclos.}
+Los ciclos se ajustan al modelo de la Parte~2,
+\begin{equation}
+  C = N_{\text{instr}} + 4 + 2\,N_{\text{tomados}} + S_{\text{ecall}} ,
+\end{equation}
+con $S_{\text{ecall}} = 2$ en el procesador con hazard unit (el \texttt{li a7}
+queda a distancia 1 del \texttt{ecall}) y $0$ en el otro, y $N_{\text{tomados}} = 1999$:
+\begin{align}
+  \text{con hazard:} &\quad 24006 + 4 + 2 \times 1999 + 2 = 28010, \\
+  \text{sin hazard:} &\quad 52009 + 4 + 2 \times 1999 + 0 = 56011 ,
+\end{align}
+que coinciden exactamente con lo medido.
 %==========================================================
 \section{Discusi\'on}
 %==========================================================
@@ -745,7 +976,43 @@ solo ocurre con hazard unit.
 \subsection{Parte 3: Operaciones entre registros}
 %----------------------------------------------------------
 
-\pendiente{discusi\'on de los resultados de operaciones entre registros y relaci\'on con la teor\'ia}
+\paragraph{El forwarding resuelve las dependencias de ALU sin costo.}
+El procesador con hazard unit retira 24006 instrucciones en 28010 ciclos. Los
+$28010 - 24006 = 4004$ ciclos de m\'as se explican por completo con el llenado del
+pipeline (4), los saltos tomados ($2 \times 1999 = 3998$) y el atasco del
+\texttt{ecall} (2). Las 14000 dependencias RAW de la cadena no agregan ning\'un
+ciclo, porque el forwarding entrega el resultado de la ALU a la instrucci\'on
+siguiente sin esperar a WB \cite{harris,patterson}.
+
+\paragraph{Resolver por software duplica el tiempo.}
+Sin hardware, la misma cadena exige 14 \texttt{nop} por vuelta, 28003 en total
+con los del final. La diferencia de ciclos entre los dos procesadores es
+$56011 - 28010 = 28001 = 28003 - 2$, es decir, un ciclo por cada \texttt{nop}
+menos los 2 ciclos del atasco del \texttt{ecall}, que solo ocurre con hazard
+unit. Con el mismo reloj, el procesador con hazard unit es
+\begin{equation}
+  \frac{56011}{28010} \approx 2.00
+\end{equation}
+veces m\'as r\'apido.
+
+\paragraph{El CPI vuelve a ser enga\~noso.}
+La versi\'on con \texttt{nop} tiene mejor CPI (1.08 contra 1.17), pero tarda el
+doble. Contando solo las 24006 instrucciones \'utiles, su CPI efectivo es
+\begin{equation}
+  \frac{56011}{24006} \approx 2.33 ,
+\end{equation}
+frente a 1.17 con hazard unit. Esto es consecuencia de la ecuaci\'on de
+rendimiento: al usar \texttt{nop} suben las instrucciones y baja el CPI, pero el
+producto $N_{\text{instr}} \times \text{CPI}$, que determina el tiempo, es casi el
+doble \cite{harris,patterson}.
+
+\paragraph{C\'omo se podr\'ia reducir el costo.}
+Si el c\'alculo real admitiera dos cadenas independientes, se podr\'ian intercalar
+sus instrucciones: mientras una espera a su dependencia, se ejecuta una
+instrucci\'on de la otra. Con dos cadenas intercaladas bastar\'ia 1 \texttt{nop} por
+par, y con tres no har\'ian falta, porque la distancia entre instrucciones
+dependientes llegar\'ia a 3. Es la misma idea de la planificaci\'on de
+instrucciones que hacen los compiladores \cite{patterson}.
 
 %----------------------------------------------------------
 \subsection{Comparaci\'on de los tres aspectos}
@@ -766,16 +1033,57 @@ procesadores.
     Saltos            & Sin hazard (con \texttt{nop}) & 27011 & 19009 & 1.42 & 0.704 \\
                       & Con hazard                    & 19013 & 11009 & 1.73 & 0.579 \\                 
     \midrule
-    Operaciones entre & Sin hazard (con \texttt{nop}) & \pend & \pend & \pend & \pend \\
-    registros         & Con hazard                    & \pend & \pend & \pend & \pend \\
+    Operaciones entre & Sin hazard (con \texttt{nop}) & 56011 & 52009 & 1.08 & 0.929 \\
+    registros         & Con hazard                    & 28010 & 24006 & 1.17 & 0.857 \\
     \bottomrule
   \end{tabular}
   \caption{Comparaci\'on de los tres programas en los dos procesadores.}
   \label{tab:comparacion}
 \end{table}
 
-\pendiente{discutir la tabla comparativa de los tres aspectos y relacionarla
-con la teor\'ia referenciada en IEEE}
+\paragraph{Con hazard unit, el CPI lo fija el control.}
+En el procesador con hazard unit las dependencias de datos de los tres programas
+no producen atascos, y el CPI queda determinado por la fracci\'on $f$ de
+instrucciones que son saltos tomados:
+\begin{equation}
+  \text{CPI} \approx 1 + 2f .
+\end{equation}
+La Tabla~\ref{tab:modelo_cpi} lo comprueba.
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{@{}lrrrr@{}}
+    \toprule
+    Programa & Saltos tomados & Instrucciones & $f$ & $1 + 2f$ (CPI medido) \\
+    \midrule
+    Accesos a memoria        & 2001 & 14007 & 0.143 & 1.29 (1.29) \\
+    Saltos                   & 3999 & 11009 & 0.363 & 1.73 (1.73) \\
+    Operaciones entre reg.   & 1999 & 24006 & 0.083 & 1.17 (1.17) \\
+    \bottomrule
+  \end{tabular}
+  \caption{Relaci\'on entre el CPI con hazard unit y la fracci\'on de saltos tomados.}
+  \label{tab:modelo_cpi}
+\end{table}
+
+El programa de saltos tiene el peor CPI porque m\'as de un tercio de sus
+instrucciones son saltos tomados, y el de operaciones entre registros el mejor,
+porque casi todas sus instrucciones son operaciones de ALU que fluyen sin
+penalizaci\'on.
+
+\paragraph{Sin hazard unit, el costo lo fijan las dependencias.}
+La relaci\'on entre los ciclos sin y con hazard unit es 1.67 en accesos a
+memoria, 1.42 en saltos y 2.00 en operaciones entre registros. Como cada
+\texttt{nop} agrega un ciclo, esa raz\'on crece con la cantidad de \texttt{nop} que
+exige el programa: 12000 en accesos a memoria, 8000 en saltos y 28000 en
+operaciones entre registros, que es el programa m\'as dependiente (cada
+instrucci\'on usa el resultado de la anterior). En todos los casos, el CPI de la
+versi\'on con \texttt{nop} parece mejor y el tiempo es peor, as\'i que la
+comparaci\'on debe hacerse en ciclos totales.
+
+\paragraph{Ninguno de los dos elimina el costo de los saltos.}
+Los saltos tomados cuestan 2 ciclos en cualquier procesador y programa. Es un
+hazard de control, que ni el forwarding ni los \texttt{nop} resuelven, y por eso
+requiere t\'ecnicas como la predicci\'on de saltos \cite{patterson,smith}.
 
 %==========================================================
 \section{Conclusiones}
@@ -806,11 +1114,30 @@ con la teor\'ia referenciada en IEEE}
         atasco de hasta 2 ciclos, y en ID sin ella, donde puede ejecutarse
         desde el camino equivocado de un salto si \texttt{a7} ya est\'a
         cargado.
-  \item \pendiente{conclusiones de la Parte 3 (operaciones entre registros)}
-  \item \pendiente{conclusi\'on general que integre los tres aspectos}
+  \item \textbf{Parte 3 (operaciones entre registros).} El programa ejecuta
+        16000 operaciones de tipo R (8 por vuelta, 2000 vueltas) encadenadas
+        por dependencias RAW. Con hazard unit se retiran 24006 instrucciones en
+        28010 ciclos; sin ella, 52009 instrucciones en 56011 ciclos.
+  \item El forwarding resuelve las 14000 dependencias de la cadena sin ning\'un
+        ciclo extra, mientras que resolverlas por software exige 28003
+        \texttt{nop}, lo que duplica los ciclos (factor 2.00). El CPI efectivo
+        sobre las instrucciones \'utiles es 1.17 con hazard unit y 2.33 sin ella.
+  \item Una variante sin dependencias entre las operaciones necesita solo 3
+        \texttt{nop} y 28011 ciclos en el procesador sin hazard unit, lo que
+        muestra que el costo proviene de las dependencias y no de las
+        operaciones, y que la planificaci\'on de instrucciones puede reducirlo.
+  \item \textbf{Conclusi\'on general.} Los tres programas confirman que cada
+        mecanismo cubre un tipo de riesgo distinto: el forwarding elimina el
+        costo de las dependencias de datos entre instrucciones de ALU y los
+        \texttt{nop} lo reemplazan a un costo de ciclos proporcional al n\'umero
+        de dependencias, mientras que los saltos tomados cuestan siempre 2
+        ciclos. Con hazard unit, el CPI se ajusta a $1 + 2f$; sin ella, el
+        tiempo crece un ciclo por cada \texttt{nop} (1.67, 1.42 y 2.00 veces
+        m\'as ciclos en las Partes 1, 2 y 3).
 \end{itemize}
 
 %==========================================================
+\clearpage
 \begin{thebibliography}{9}
 \bibitem{ripes} M.~B. Petersen, ``Ripes: A Visual Computer Architecture
   Simulator,'' en \emph{2021 ACM/IEEE Workshop on Computer Architecture
@@ -823,10 +1150,43 @@ con la teor\'ia referenciada en IEEE}
 \bibitem{smith} J.~E. Smith, ``A study of branch prediction strategies,'' en
   \emph{Proc. 8th Annual Symposium on Computer Architecture (ISCA)}, 1981,
   pp.~135--148.
+\bibitem{riscv} A.~Waterman y K.~Asanovi\'c, Eds., \emph{The RISC-V
+  Instruction Set Manual, Volume I: Unprivileged ISA}, RISC-V International,
+  documento versi\'on 20191213, 2019.
 \bibitem{ripes_src} M.~B. Petersen, ``Ripes: A graphical processor simulator
   and assembly editor for the RISC-V ISA,'' repositorio de GitHub. [En l\'inea].
   Disponible: \url{https://github.com/mortbopet/Ripes}
 % \pendiente{agregar mas referencias IEEE sobre pipeline, hazards y jerarquia de memoria}
 \end{thebibliography}
+
+\clearpage
+%==========================================================
+\section{Anexos}
+%==========================================================
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.24\textwidth]{registros3.png}
+  \caption{Registros de Ripes al concluir el programa de operaciones entre
+  registros.}
+  \label{fig:regs3}
+\end{figure}
+
+
+\begin{figure}[h!]
+  \centering
+  \begin{minipage}[t]{0.42\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{op3_pipelined_noHazardUnit_exceinfo.png}\\[2pt]
+    {\small (a) Sin hazard (con \texttt{nop})}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{0.42\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{op3_pipelined_exceinfo.png}\\[2pt]
+    {\small (b) Con hazard (original)}
+  \end{minipage}
+  \caption{Execution info de Ripes para el programa de operaciones entre
+  registros. El campo Clock rate no se utiliza en el an\'alisis.}
+  \label{fig:execinfo3}
+\end{figure}
 
 \end{document}
