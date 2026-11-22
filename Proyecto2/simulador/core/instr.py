@@ -3,13 +3,13 @@ from enum import Enum
 
 
 class Fmt(Enum):
-    """Formato de codificacion RISC-V."""
-    R = "R"   # add, sub, and, mul... rd, rs1, rs2
-    I = "I"   # addi, lw, jalr, slli... rd, rs1, imm
-    S = "S"   # sw, sh, sb  rs1, rs2, imm
-    B = "B"   # beq, bne, blt... rs1, rs2, imm (offset)
-    U = "U"   # lui, auipc   rd, imm
-    J = "J"   # jal  rd, imm (offset)
+    """Formato de codificacion RISC-V (green card)."""
+    R = "R"   # add, sub, and, mul...       rd, rs1, rs2
+    I = "I"   # addi, lw, jalr, slli...     rd, rs1, imm
+    S = "S"   # sw, sh, sb                  rs1, rs2, imm
+    B = "B"   # beq, bne, blt...            rs1, rs2, imm (offset)
+    U = "U"   # lui, auipc                  rd, imm
+    J = "J"   # jal                         rd, imm (offset)
     SYS = "SYS"  # ecall, ebreak
 
 
@@ -60,10 +60,12 @@ class Instr:
     def fmt(self) -> Fmt:
         return FORMATS[self.op]
 
+    # --- Preguntas que hacen los procesadores, la GUI y la hazard unit ---
+
     @property
     def writes_rd(self) -> bool:
-        """True si escribe el banco de registros (S, B y SYS no escriben),
-        escribir en x0 no cuenta.
+        """True si escribe el banco de registros (S, B y SYS no escriben).
+        Escribir en x0 no cuenta.
         """
         return self.fmt in (Fmt.R, Fmt.I, Fmt.U, Fmt.J) and self.rd != 0
 

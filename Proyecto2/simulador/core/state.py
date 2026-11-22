@@ -1,9 +1,10 @@
 """Estado arquitectonico: banco de registros, memoria de datos y programa.
-Memoria de instrucciones y memoria de datos separadas.
+Memoria de instrucciones y memoria dedatos separadas.
 """
 
 from .bits import u32, sext, zext, hex32
 from .instr import Instr
+from .program import Program
 
 REG_NAMES = (
     "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
@@ -78,9 +79,6 @@ class DataMemory:
 
     def last_used(self) -> int:
         """Direccion del ultimo byte distinto de 0 (-1 si todo esta en 0).
-
-        Sirve para mostrar desde 0 hasta la ultima celda sin listar
-        toda la memoria vacia.
         """
         for a in range(self.size - 1, -1, -1):
             if self._b[a]:
@@ -91,17 +89,26 @@ class DataMemory:
 class ArchState:
     """Todo el estado visible: PC, registros, memoria y programa."""
 
-    def __init__(self, program: list[Instr], mem_size: int = 4096):
+    def __init__(self, program: Program | list[Instr], mem_size: int = 4096):
+        if isinstance(program, list): # comodidad para pruebas a mano
+            program = Program(program)
+        if len(program.data) > mem_size:
+            raise MemoryError_(f"los datos ({len(program.data)} B) no caben en {mem_size} B")
         self.program = program
         self.regs = RegisterFile()
         self.mem = DataMemory(mem_size)
-        self.pc = 0
+        self.mem._b[:len(program.data)] = program.data
+        self.pc = program.entry
         # La pila crece hacia abajo desde el final de la memoria.
+        # El codigo de clang usa sp desde la primera instruccion.
         self.regs.write(2, mem_size)
+        # Cuando main haga ret, saltara al final del programa y terminara.
+        self.regs.write(1, program.end_addr)
 
     def fetch(self, pc: int) -> Instr | None:
         """Instruccion en la direccion pc, o None si se sale del programa."""
         if pc % 4 != 0:
             raise MemoryError_(f"PC desalineado: {hex32(pc)}")
         i = pc // 4
-        return self.program[i] if 0 <= i < len(self.program) else None
+        instrs = self.program.instrs
+        return instrs[i] if 0 <= i < len(instrs) else None
