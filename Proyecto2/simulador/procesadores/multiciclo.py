@@ -20,6 +20,7 @@ class Estado(Enum):
     EXEC_I = "S8 ExecuteI"
     JAL = "S9 JAL"
     BEQ = "S10 BEQ"
+    
     # extensiones
     EXEC_U = "EXEC_U"
     JALR = "JALR"
@@ -28,8 +29,7 @@ class Estado(Enum):
 
 
 # Estados en los que la ALU calcula con los operandos de la instruccion.
-ESTADOS_EXEC = {Estado.MEMADR, Estado.EXEC_R, Estado.EXEC_I, Estado.EXEC_U,
-                Estado.JAL, Estado.JALR, Estado.BEQ, Estado.SYS}
+ESTADOS_EXEC = {Estado.MEMADR, Estado.EXEC_R, Estado.EXEC_I, Estado.EXEC_U, Estado.JAL, Estado.JALR, Estado.BEQ, Estado.SYS}
 
 
 def estado_tras_decode(i: Instr) -> Estado:
@@ -48,12 +48,12 @@ def estado_tras_decode(i: Instr) -> Estado:
         return Estado.SYS
     if i.fmt is Fmt.R:
         return Estado.EXEC_R
-    return Estado.EXEC_I            # addi, slti, xori, slli...
+    return Estado.EXEC_I # addi, slti, xori, slli...
 
 
 def modulos_estado(estado: Estado, i: Instr, tomado: bool = False) -> set[Mod]:
     """Modulos del datapath de H&H que se encienden en un estado."""
-    m = {Mod.CONTROL}               # la FSM siempre esta activa
+    m = {Mod.CONTROL} # la FSM siempre esta activa
 
     if estado is Estado.FETCH:
         # Instr <- Mem[PC]; PC <- PC+4 (por la ALU y el mux Result)
@@ -93,20 +93,19 @@ def modulos_estado(estado: Estado, i: Instr, tomado: bool = False) -> set[Mod]:
 
 class Multiciclo(Processor):
     name = "Multiciclo"
-    STAGE = "Multiciclo"            # la GUI ve una sola "etapa": la instruccion
+    STAGE = "Multiciclo" # la GUI ve una sola "etapa": la instruccion
 
     def __init__(self, program, mem_size: int = 4096):
         super().__init__(program, mem_size)
         self.estado = Estado.FETCH
         # Registros internos del datapath
-        self.ir: Instr | None = None        # Instr
-        self.old_pc = 0                     # OldPC
-        self.a = 0                          # A
-        self.b = 0                          # B
-        self.ex: ExResult | None = None     # ALUOut (+ decision de salto)
-        self.loaded: int | None = None      # Data
+        self.ir: Instr | None = None # Instr
+        self.old_pc = 0 # OldPC
+        self.a = 0 # A
+        self.b = 0 # B
+        self.ex: ExResult | None = None # ALUOut (+ decision de salto)
+        self.loaded: int | None = None # Data
 
-    # ------------------------------------------------------------------
     @property
     def period_ps(self) -> int:
         """El ciclo lo fija el estado mas lento (Harris & Harris, cap. 7).
@@ -114,15 +113,17 @@ class Multiciclo(Processor):
         """
         # Fetch: PC -> IMEM, en paralelo con PC -> mux -> ALU -> mux Result -> PC
         t_fetch = L.T_PCQ + max(L.T_MEM, L.T_MUX + L.T_ALU + L.T_MUX) + L.T_SETUP
+
         # Decode: ImmExt (decodificar + extender) -> mux srcB -> ALU -> ALUOut.
         t_dec = L.T_PCQ + L.T_DEC + max(L.T_ALU, L.T_MEM) + 2*L.T_MUX + L.T_SETUP
+
         # Execute: mux -> ALU -> (AND-OR de PCSrc) -> mux Result -> PC
         t_ex = L.T_PCQ + L.T_MUX + L.T_ALU + L.T_ANDOR + L.T_MUX + L.T_SETUP
         t_mem = L.T_PCQ + L.T_MEM + L.T_SETUP
         t_wb = L.T_PCQ + L.T_MUX + L.T_RF_SETUP
+
         return max(t_fetch, t_dec, t_ex, t_mem, t_wb)
 
-    # ------------------------------------------------------------------
     def _siguiente(self, estado: Estado) -> Estado | None:
         """Estado que sigue a 'estado'. None = la instruccion termino."""
         i = self.ir
@@ -143,7 +144,6 @@ class Multiciclo(Processor):
         # MEMWB, MEMWRITE, ALUWB, BEQ, SYS terminan la instruccion
         return None
 
-    # ------------------------------------------------------------------
     def step(self) -> CycleInfo:
         s = self.state
         if self.halted:
@@ -164,7 +164,7 @@ class Multiciclo(Processor):
             self.old_pc = s.pc
             s.pc = s.pc + 4
 
-        i = self.ir                        # instruccion en curso
+        i = self.ir # instruccion en curso
 
         if estado is Estado.DECODE:
             # A, B <- RF[rs1], RF[rs2]. (ALUOut <- OldPC+imm
@@ -173,7 +173,7 @@ class Multiciclo(Processor):
 
         elif estado in ESTADOS_EXEC:
             self.ex = execute(i, self.a, self.b, self.old_pc)
-            if self.ex.taken:              # beq tomado, jal, jalr
+            if self.ex.taken: # beq tomado, jal, jalr
                 s.pc = self.ex.target
                 events.append(f"PC <- 0x{self.ex.target:08X}")
             if estado is Estado.SYS and self._syscall(i, events):
